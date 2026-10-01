@@ -10,7 +10,7 @@ mindmap
       Projects contain properties
       Country and region maps
       Filters search and directory
-      Custom fields and palettes
+      Custom fields palettes and editable map legends
       PDF PNG ZIP CSV and JSON exports
     Runtime choices
       Standalone browser preview
@@ -89,13 +89,14 @@ mindmap
         Name description team and home country
         Properties
         Project custom fields
-        Palette
-        Region rules
+        Palette and map legend definitions
+        Region-to-legend rules
         Export metadata
       Property
         Name and unique project code
         Country state district city and address
         Live or Opportunity status
+        Project map legend reference
         Team notes and competitor flag
         Paired optional latitude and longitude
         Custom values keyed by field id
@@ -105,6 +106,11 @@ mindmap
         Visibility and edit role rules
         Account then team then project precedence
         Locked account fields cannot be overridden
+      Map legend
+        Stable project-local ID
+        Editable unique label and color
+        Assigned to properties or country regions
+        Deletion reassigns existing uses
       Access
         Admin or owner has project admin access
         Contributor edits permitted project data
@@ -184,6 +190,7 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Do not edit `Property-Map.html`; run `python3 build_preview.py` after source, seed, vendor, or bundled geography changes.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
 - Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
+- Every project has 1–20 uniquely named map legends. Property and regional legend references must resolve to a project legend; regional keys must name a bundled country and state/province.
 - Project, property, and user teams must reference configured teams; a team cannot be removed while any project, property, or user still uses it.
 - Project `version` is the optimistic-lock token. Preserve 409 conflict behavior when changing saves.
 - The server must filter invisible custom values before responding and preserve fields a role cannot edit.
@@ -200,13 +207,14 @@ config = { accountName, displayName, palette, fields[], teamFields{team: fields[
 
 project = {
   id, name, description, team, country, owner, members{userId: viewer|contributor},
-  properties[], palette, fields[], regionRules{"COUNTRY:Region": {status, competition}},
+  properties[], palette, legends[{id, label, color}], fields[],
+  regionRules{"COUNTRY:Region": {legendId, competition}},
   exports[{id, name, mime, date}], version, demo
 }
 
 property = {
   id, name, code, country, state, district, city, address,
-  status: Live|Opportunity, competitor, team, notes, lat, lng, custom{fieldId: value}
+  status: Live|Opportunity, legendId, competitor, team, notes, lat, lng, custom{fieldId: value}
 }
 
 field = {

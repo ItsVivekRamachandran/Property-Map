@@ -14,6 +14,13 @@ const ExportEngine = (() => {
   const POSTER_ROW_HEIGHT = 33;
   const POSTER_GROUP_HEIGHT = 49;
 
+  function mapLegendEntries(project, mapMode) {
+    if (mapMode === 'count') return [['Low count', '#ded2f2'], ['High count', project.palette.Live], ['No properties', '#eeeef1']];
+    const entries = (project.legends || []).map(item => [item.label, item.color]);
+    entries.push(['Competition outline', project.palette.Competition], ['Unclassified', '#eeeef1']);
+    return entries;
+  }
+
   function rowsFor(project, scope, currentRows) {
     const source = scope === 'view' ? currentRows : project.properties;
     return [...source].sort((a, b) =>
@@ -181,8 +188,7 @@ const ExportEngine = (() => {
     rows.forEach(r => {const key = regionLabel(r) || countryName; byRegion[key] = (byRegion[key] || 0) + 1});
     metrics(c, 1330, rows, project.palette, byRegion);
     if (includeLegend) {
-      const keys = mapMode === 'count' ? [['Low count', '#ded2f2'], ['High count', project.palette.Live], ['No properties', '#eeeef1']] :
-        [['Live', project.palette.Live], ['Opportunity', project.palette.Opportunity], ['Competition', project.palette.Competition], ['No credit', project.palette['No credit']], ['Prohibited', project.palette.Prohibited]];
+      const keys = mapLegendEntries(project, mapMode);
       let x = 70; c.font = '17px Arial';
       for (const [label, color] of keys) {c.fillStyle = color; c.fillRect(x, 940, 17, 17); c.fillStyle = '#766a7e'; c.fillText(label, x + 25, 954); x += c.measureText(label).width + 65}
     }
@@ -271,11 +277,7 @@ const ExportEngine = (() => {
     c.fillStyle = context.project.palette.Opportunity; c.fillRect(535, 858, 15, 15);
     c.fillStyle = '#615767'; c.fillText(`Opportunities  ${opportunity}`, 559, 872);
     if (context.includeLegend) {
-      const legend = context.mapMode === 'count' ?
-        [['Low count', '#ded2f2'], ['High count', context.project.palette.Live], ['No properties', '#eeeef1']] :
-        [['Live', context.project.palette.Live], ['Opportunity', context.project.palette.Opportunity],
-          ['Competition', context.project.palette.Competition], ['No credit', context.project.palette['No credit']],
-          ['Prohibited', context.project.palette.Prohibited]];
+      const legend = mapLegendEntries(context.project, context.mapMode);
       let legendX = 54;
       c.font = '16px Arial';
       for (const [label, color] of legend) {

@@ -30,7 +30,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
         name: i === 65 ? longName : `Quality assurance site ${i}`,
         country: 'USA', state: 'Nevada', district: `District ${i}`,
         city: `City ${i}`, address: '', status: i % 2 ? 'Live' : 'Opportunity',
-        competitor: false, team: 'Product Management', notes: '', lat: '', lng: '',
+        competitor: false, team: project.team, notes: '', lat: '', lng: '',
         custom: {pm_ref: `Product requirements reference ${i}`}
       });
     }

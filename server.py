@@ -4,7 +4,7 @@ import os,json,sqlite3,secrets,hashlib,hmac,time,re,base64,urllib.parse,mimetype
 from pathlib import Path
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
 from http.cookies import SimpleCookie
-from seed import seed_projects,DEFAULT_CONFIG,PALETTE,uid
+from seed import seed_projects,DEFAULT_CONFIG,PALETTE,LEGENDS,uid
 ROOT=Path(__file__).parent; PUBLIC=ROOT/'public'; DATA=Path(os.environ.get('PROPERTY_MAP_DATA',str(ROOT/'data')))
 DATA.mkdir(exist_ok=True,parents=True); DB=DATA/'property-map.sqlite3'
 LOCAL=os.environ.get('PROPERTY_MAP_MODE','local')=='local'
@@ -19,7 +19,7 @@ def init():
   c.executescript('''CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE,name TEXT,role TEXT,team TEXT,password TEXT);CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT,expires REAL);CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS config(id INTEGER PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS exports(id TEXT PRIMARY KEY,project_id TEXT,name TEXT,mime TEXT,data BLOB);CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,time REAL,user_id TEXT,action TEXT,project_id TEXT);''')
   c.execute('INSERT OR IGNORE INTO config VALUES(1,?)',(json.dumps(DEFAULT_CONFIG),))
   if LOCAL:
-   c.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?,?,?)',('local','local@preview','Vivi','admin','West Region',''))
+   c.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?,?,?)',('local','local@preview','Local workspace','admin','West Region',''))
   elif not c.execute("SELECT 1 FROM users WHERE id!='local'").fetchone():
    p=os.environ.get('PROPERTY_MAP_ADMIN_PASSWORD','')
    if len(p)<12:raise SystemExit('Set PROPERTY_MAP_ADMIN_PASSWORD to at least 12 characters for shared mode.')
@@ -35,6 +35,20 @@ def fields_for(p,config):
    if f['id'] not in out or not out[f['id']].get('locked'):out[f['id']]=f
  return list(out.values())
 def field_allowed(f,role,op='visibility'):return role=='admin' or f.get(op,'everyone')=='everyone' or (f.get(op)=='contributors' and role=='contributor')
+def validate_legends(p):
+ legends=p.get('legends')
+ if legends is None:
+  legends=[dict(x) for x in LEGENDS];p['legends']=legends
+ if not isinstance(legends,list) or not 1<=len(legends)<=20:raise ValueError('Add between 1 and 20 map legends.')
+ ids=set();labels=set()
+ for item in legends:
+  if not isinstance(item,dict):raise ValueError('Each map legend must be an object.')
+  lid=item.get('id','');label=item.get('label','').strip() if isinstance(item.get('label'),str) else ''
+  if not re.fullmatch(r'[a-zA-Z0-9_-]{1,50}',lid) or lid in ids:raise ValueError('Invalid or duplicate map legend ID.')
+  if not label or len(label)>80 or label.casefold() in labels:raise ValueError('Map legend names must be unique and no longer than 80 characters.')
+  if not re.fullmatch(r'#[0-9a-fA-F]{6}',str(item.get('color',''))):raise ValueError('Invalid map legend color.')
+  ids.add(lid);labels.add(label.casefold());item['label']=label
+ return legends,ids
 def visible(p,u,config):
  p=json.loads(json.dumps(p));role=role_for(u,p);fs=fields_for(p,config)
  for r in p['properties']:r['custom']={k:v for k,v in r.get('custom',{}).items() if any(f['id']==k and field_allowed(f,role) for f in fs)}
@@ -69,6 +83,24 @@ def validate_project(p,config,old=None,u=None):
  if not isinstance(palette,dict) or set(palette)!=set(PALETTE):raise ValueError('A complete project palette is required.')
  for v in palette.values():
   if not re.fullmatch(r'#[0-9a-fA-F]{6}',v):raise ValueError('Invalid color.')
+ legends,legend_ids=validate_legends(p)
+ label_ids={x['label'].casefold():x['id'] for x in legends}
+ rules=p.get('regionRules',{})
+ if not isinstance(rules,dict) or len(rules)>2000:raise ValueError('Invalid regional legend assignments.')
+ rule_countries={}
+ for key,rule in rules.items():
+  match=re.fullmatch(r'([A-Z]{3}):(.{1,160})',key or '')
+  if not match or not isinstance(rule,dict) or not isinstance(rule.get('competition',False),bool):raise ValueError('Invalid regional legend assignment.')
+  co,state=match.groups()
+  if co not in rule_countries:
+   path=PUBLIC/'data'/(co+'.json')
+   if not path.is_file():raise ValueError('Regional legend assignment uses an unsupported country.')
+   rule_countries[co]={f['properties']['name'] for f in json.loads(path.read_text())['features']}
+  if state not in rule_countries[co]:raise ValueError('Regional legend assignment uses an invalid state or province.')
+  legend_id=rule.get('legendId') or label_ids.get(str(rule.get('status','')).casefold())
+  if legend_id and legend_id not in legend_ids:raise ValueError('Regional legend assignment references an unknown legend.')
+  if legend_id:rule['legendId']=legend_id
+  rule.pop('status',None)
  props=p.get('properties',[])
  if not isinstance(props,list):raise ValueError('Properties must be a list.')
  if len(props)>10000:raise ValueError('Project limit is 10,000 properties.')
@@ -92,6 +124,9 @@ def validate_project(p,config,old=None,u=None):
    countries[co]={f['properties']['name'] for f in json.loads(path.read_text())['features']}
   if r.get('state') not in countries[co]:raise ValueError('Choose a valid state or province.')
   if r.get('status') not in ['Live','Opportunity']:raise ValueError('Invalid property status.')
+  legend_id=r.get('legendId') or label_ids.get(r.get('status','').casefold()) or legends[0]['id']
+  if legend_id not in legend_ids:raise ValueError('Property references an unknown map legend.')
+  r['legendId']=legend_id
   if not isinstance(r.get('competitor',False),bool):raise ValueError('Invalid competitor setting.')
   for key,limit in [('lat',90),('lng',180)]:
    if r.get(key,'')!='':

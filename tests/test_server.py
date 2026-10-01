@@ -80,4 +80,13 @@ class ServerTest(unittest.TestCase):
   cfg=copy.deepcopy(self.req(self.admin,'/api/bootstrap')['config']);cfg['teams']=[t for t in cfg['teams'] if t!='West Region']
   self.req(self.admin,'/api/config','PUT',cfg,400)
   self.req(self.admin,'/api/users','POST',{'email':'wrong-team@test.org','name':'Wrong team','role':'member','team':'Not configured','password':'test-long-password'},400)
+ def test_06_map_legend_validation(self):
+  p=copy.deepcopy(self.req(self.admin,'/api/bootstrap')['projects'][0])
+  p['legends'].append({'id':'under-review','label':'Under review','color':'#d14f7b'})
+  p['properties'][0]['legendId']='under-review'
+  p['regionRules']['USA:Nevada']={'legendId':'under-review','competition':False}
+  p=self.req(self.admin,'/api/projects/'+p['id'],'PUT',p)
+  self.assertEqual(p['regionRules']['USA:Nevada']['legendId'],'under-review')
+  q=copy.deepcopy(p);q['properties'][0]['legendId']='missing';self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
+  q=copy.deepcopy(p);q['regionRules']['USA:Not a real state']={'legendId':'under-review','competition':False};self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
 if __name__=='__main__':unittest.main(verbosity=2)

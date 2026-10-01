@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 tests/*.png
 tests/*.pdf
+tests/*.zip
 public/data/world-raw.json
 
 .DS_Store
