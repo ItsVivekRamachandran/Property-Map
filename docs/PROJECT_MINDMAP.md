@@ -11,7 +11,8 @@ mindmap
       Country and region maps
       Filters search and directory
       Custom fields palettes and editable map legends
-      PDF PNG ZIP CSV and JSON exports
+      Map styles count dots legends and locations
+      Slide PNG for presentations PDF report CSV and JSON exports
     Runtime choices
       Standalone browser preview
         Property-Map.html
@@ -45,6 +46,7 @@ mindmap
         Render functions return HTML strings
         Delegated click change submit handlers
         D3 and TopoJSON map drawing
+        Dot style draws one dot per property per region
         Drawers for edit settings sharing and export
         Team and access screen for shared-mode administrators only
         Icons are Material Symbols from public vendor material-symbols.js
@@ -56,11 +58,14 @@ mindmap
         Dialog and drawer styling
       public export-engine.js
         Sorts export rows
-        Measures unwrapped column widths
-        PDF map plus directory pages
-        Paginated PNG or ZIP
-        Single-image poster PNG
-        Browser pixel and edge limits
+        Always one PNG with map and optional grouped property list
+        Map and list share a 16 by 9 slide and long names wrap
+        Image grows taller only when 12px text cannot fit
+        Map layers can be combined
+        PDF map plus directory pages with measured column widths
+        PDF table can be grouped into state sections
+        PDF overview counts every legend and every region in one or two columns
+        Low-resolution slide preview for the drawer
     Server application
       server.py
         Standard-library HTTP server
@@ -154,7 +159,7 @@ mindmap
       tests e2e.cjs
         Main browser CRUD settings map export mobile flow
       tests export_complete.cjs
-        Large complete PDF PNG ZIP and poster guarantees
+        Single image clipboard copy combined layers long lists and PDF completeness
       tests offline_export.cjs
         Self-contained preview and offline exports
         Required-field rollout in the standalone adapter
@@ -183,7 +188,7 @@ The UI is a framework-free, single-page browser application. `public/app.js` own
 
 Most project edits are full-document writes. The client sends the current `version`; the server validates the full project, restores protected values where required, increments the version, and rejects stale writes with HTTP 409. Shared-mode authorization and hidden-field filtering are server responsibilities; browser-preview role settings are not a security boundary.
 
-Exports are rendered entirely in the browser. `public/app.js` gathers the selected rows and SVG map; `public/export-engine.js` measures content and creates PDF, PNG, or ZIP bytes. The chosen runtime adapter then stores those bytes and optionally downloads them.
+Exports are rendered entirely in the browser. `public/app.js` gathers the selected rows and draws a static SVG map in the chosen style; `public/export-engine.js` lays out the single slide image (PNG) or the PDF report. The chosen runtime adapter then stores those bytes and optionally downloads them.
 
 ## First file to open
 
@@ -213,7 +218,10 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - A newly required custom field binds only new or changed properties, in both the server and the standalone adapter.
 - The US state list offers only the 50 states and DC (FIPS below 60), matching what the validators accept.
 - Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
-- Complete exports must not silently omit records or truncate values. Oversized single-image exports must fail with a useful alternative.
+- Exports must not silently omit records or truncate values. The PNG export is always one image: the map and list resize to share a 16:9 slide (3840 × 2160), long names wrap, and only a list that cannot fit at 12px makes the image taller.
+- An export covers only the country shown on the map; project properties in other countries are left out of both the image and the PDF.
+- The PNG export can combine map layers (count, dots, legends, locations) and can leave out the property list. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
+- Dots in the dot map style show counts per region, never locations; the map, side list and slide share one colour per region.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
 - Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.
 - Non-GET API requests require `X-Property-Map: 1` and, when present, a same-host `Origin`.
