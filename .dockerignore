@@ -1,0 +1,6 @@
+data/
+tests/
+public/data/world-raw.json
+*.zip
+__pycache__/
+Property-Map.html

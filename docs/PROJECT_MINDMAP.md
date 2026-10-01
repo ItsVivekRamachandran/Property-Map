@@ -1,0 +1,234 @@
+# Property Map — first-reference mind map
+
+Read this before opening implementation files. It is an index to the code, not a replacement for checking the named source before changing behavior.
+
+```mermaid
+mindmap
+  root((Property Map))
+    Product
+      Portfolio workspace
+      Projects contain properties
+      Country and region maps
+      Filters search and directory
+      Custom fields and palettes
+      PDF PNG ZIP CSV and JSON exports
+    Runtime choices
+      Standalone browser preview
+        Property-Map.html
+        Built by build_preview.py
+        All assets and geography embedded
+        Projects and config in localStorage
+        Export bytes in IndexedDB
+        Single local admin identity
+      Python server local mode
+        python server.py
+        Loopback only
+        SQLite under data by default
+        Automatic local admin identity
+      Python server shared mode
+        PROPERTY_MAP_MODE shared
+        Email and password sessions
+        Project ACLs enforced server side
+        Persistent PROPERTY_MAP_DATA required
+        Intended behind HTTPS proxy
+        Dockerfile entry point
+    Browser application
+      public index.html
+        Loads pinned vendor libraries
+        Loads export-engine.js then app.js
+      public app.js
+        Central state object S
+        API adapter selects browser or server storage
+        Render functions return HTML strings
+        Delegated click change submit handlers
+        D3 and TopoJSON map drawing
+        Drawers for edit settings sharing and export
+        Backup import and CSV download
+      public styles.css
+        Visual system
+        Responsive and mobile layout
+        Dialog and drawer styling
+      public export-engine.js
+        Sorts export rows
+        Measures unwrapped column widths
+        PDF map plus directory pages
+        Paginated PNG or ZIP
+        Single-image poster PNG
+        Browser pixel and edge limits
+    Server application
+      server.py
+        Standard-library HTTP server
+        Static public file serving
+        JSON API routing
+        SQLite persistence
+        PBKDF2 password hashing
+        Hashed expiring sessions
+        Same-origin mutation guard
+        Validation ACL filtering and conflicts
+      SQLite tables
+        users
+        sessions
+        projects as JSON documents
+        config as one JSON document
+        exports as blobs
+        audit
+      API
+        POST login and logout
+        GET bootstrap
+        PUT config
+        GET and POST users
+        POST atomic project import
+        POST projects
+        PUT and DELETE project by id
+        PUT project members
+        POST project exports
+        GET and DELETE export bytes
+    Domain model
+      Project
+        Identity owner members and version
+        Name description team and home country
+        Properties
+        Project custom fields
+        Palette
+        Region rules
+        Export metadata
+      Property
+        Name and unique project code
+        Country state district city and address
+        Live or Opportunity status
+        Team notes and competitor flag
+        Paired optional latitude and longitude
+        Custom values keyed by field id
+      Custom field
+        Text number date select or checkbox
+        Required and optional status condition
+        Visibility and edit role rules
+        Account then team then project precedence
+        Locked account fields cannot be overridden
+      Access
+        Admin or owner has project admin access
+        Contributor edits permitted project data
+        Viewer reads and exports
+        No membership means no project access
+    Geography
+      public data countries.json
+        Country index
+      public data three-letter-code JSON
+        Natural Earth admin level one GeoJSON
+      public data us-counties.json
+        US states and counties TopoJSON
+      prepare_data.py
+        Simplifies raw Natural Earth boundaries
+      normalize_geo.cjs
+        Corrects polygon winding for D3
+      Limitations
+        Non-US districts are manual text
+        Coordinates are not geocoded
+        Coordinates are not polygon-validated
+    Seed and generated artifacts
+      seed.py
+        Default config and palettes
+        US sample with 44 properties
+        Empty India planning sample
+      Property-Map.html
+        Generated self-contained preview
+        Never edit directly
+      build_preview.py
+        Rebuild after UI seed vendor or data changes
+    Tests
+      tests test_server.py
+        Auth ACL validation CSRF conflicts exports
+      tests e2e.cjs
+        Main browser CRUD settings map export mobile flow
+      tests export_complete.cjs
+        Large complete PDF PNG ZIP and poster guarantees
+      tests offline_export.cjs
+        Self-contained preview and offline exports
+      tests browser.cjs
+        Quick visual smoke and screenshot
+      tests accessibility_extreme.cjs
+        Axe serious and critical checks
+        Keyboard semantics pagination deletion
+        320px empty-workspace and unsaved-form edge cases
+    External libraries
+      D3 for projections zoom colors and SVG
+      TopoJSON for US boundary conversion
+      PDF-Lib for PDFs
+      JSZip for multi-page PNG ZIPs
+      Playwright from runtime environment for browser tests
+```
+
+## Mental model in 30 seconds
+
+The UI is a framework-free, single-page browser application. `public/app.js` owns state, rendering, event handling, map behavior, and a storage-neutral `api()` function. In standalone mode, that adapter writes JSON to `localStorage` and export files to IndexedDB. In server modes, it calls `server.py`, which stores whole project JSON documents in SQLite and export bytes in a separate table.
+
+Most project edits are full-document writes. The client sends the current `version`; the server validates the full project, restores protected values where required, increments the version, and rejects stale writes with HTTP 409. Shared-mode authorization and hidden-field filtering are server responsibilities; browser-preview role settings are not a security boundary.
+
+Exports are rendered entirely in the browser. `public/app.js` gathers the selected rows and SVG map; `public/export-engine.js` measures content and creates PDF, PNG, or ZIP bytes. The chosen runtime adapter then stores those bytes and optionally downloads them.
+
+## First file to open
+
+| If the task is about… | Start here | Then check |
+| --- | --- | --- |
+| Page, form, interaction, filtering, map mode | `public/app.js` | `public/styles.css`, relevant browser test |
+| Export layout, completeness, image limits | `public/export-engine.js` | export functions in `public/app.js`, export tests |
+| API, auth, validation, permissions, conflicts | `server.py` | `tests/test_server.py` |
+| Defaults, sample records, palettes, teams | `seed.py` | rebuild standalone preview |
+| Offline/self-contained preview | `build_preview.py` | generated `Property-Map.html`, `tests/offline_export.cjs` |
+| Country/state boundaries | `public/data/` | `prepare_data.py`, then `normalize_geo.cjs` |
+| Responsive appearance | `public/styles.css` | `tests/e2e.cjs` mobile assertions |
+| Deployment | `Dockerfile`, `README.md` | shared-mode environment handling in `server.py` |
+
+## High-value invariants
+
+- Do not edit `Property-Map.html`; run `python3 build_preview.py` after source, seed, vendor, or bundled geography changes.
+- A property code is unique only within its project. Latitude and longitude must be supplied together.
+- Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
+- Project, property, and user teams must reference configured teams; a team cannot be removed while any project, property, or user still uses it.
+- Project `version` is the optimistic-lock token. Preserve 409 conflict behavior when changing saves.
+- The server must filter invisible custom values before responding and preserve fields a role cannot edit.
+- Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
+- Complete exports must not silently omit records or truncate values. Oversized single-image exports must fail with a useful alternative.
+- Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
+- Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.
+- Non-GET API requests require `X-Property-Map: 1` and, when present, a same-host `Origin`.
+
+## Data shape cheat sheet
+
+```text
+config = { accountName, displayName, palette, fields[], teamFields{team: fields[]}, teams[] }
+
+project = {
+  id, name, description, team, country, owner, members{userId: viewer|contributor},
+  properties[], palette, fields[], regionRules{"COUNTRY:Region": {status, competition}},
+  exports[{id, name, mime, date}], version, demo
+}
+
+property = {
+  id, name, code, country, state, district, city, address,
+  status: Live|Opportunity, competitor, team, notes, lat, lng, custom{fieldId: value}
+}
+
+field = {
+  id, label, type: text|number|date|select|checkbox,
+  required, visibility, editable, options[], condition, locked
+}
+```
+
+## Verification map
+
+```bash
+# Backend contract and security behavior
+python3 tests/test_server.py
+
+# Rebuild the generated offline artifact
+python3 build_preview.py
+
+# Browser suites use local Playwright dependencies, or CODEX_PRIMARY_RUNTIME_NODE_MODULES when supplied.
+node tests/e2e.cjs
+node tests/accessibility_extreme.cjs
+node tests/export_complete.cjs
+node tests/offline_export.cjs
+```
+
+When architecture, storage, API routes, core invariants, or file ownership changes, update this document in the same change.

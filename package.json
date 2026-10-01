@@ -1,0 +1,14 @@
+{
+  "name": "property-map",
+  "private": true,
+  "scripts": {
+    "test": "python3 tests/test_server.py",
+    "test:e2e": "node tests/e2e.cjs",
+    "test:exports": "node tests/export_complete.cjs && node tests/offline_export.cjs",
+    "test:a11y": "node tests/accessibility_extreme.cjs"
+  },
+  "devDependencies": {
+    "axe-core": "^4.13.0",
+    "playwright": "^1.63.0"
+  }
+}
