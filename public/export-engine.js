@@ -112,6 +112,7 @@ const ExportEngine = (() => {
     const groups = posterGroups(rows, countryNames);
     const ctx = document.createElement('canvas').getContext('2d');
     const scale = resolution / SCALE_BASE;
+    const candidates = [];
     for (let n = 2; n <= 16; n++) {
       const columns = posterColumns(groups, n).filter(column => column.length);
       if (!columns.length) columns.push([]);
@@ -127,7 +128,17 @@ const ExportEngine = (() => {
       const height = Math.max(1030, POSTER_LIST_TOP + Math.max(...columns.map(col => col.reduce((sum, item) =>
         sum + (item.type === 'group' ? POSTER_GROUP_HEIGHT : POSTER_ROW_HEIGHT), 0))) + 86);
       if (width * scale <= MAX_EDGE && height * scale <= MAX_EDGE && width * height * scale * scale <= MAX_PIXELS)
-        return {groups, columns, columnWidths, width, height};
+        candidates.push({groups, columns, columnWidths, width, height});
+    }
+    if (candidates.length) {
+      // Prefer a poster whose directory finishes near the fixed-height map card. This
+      // avoids a tall empty area below the map while mildly penalising very wide output.
+      const score = layout => {
+        const extraHeight = Math.max(0, layout.height - 1030);
+        const extraWidth = Math.max(0, layout.width - 3200);
+        return extraHeight * extraHeight + extraWidth * extraWidth * .03 + layout.width * .01;
+      };
+      return candidates.sort((a, b) => score(a) - score(b))[0];
     }
     throw Error('This portfolio exceeds the browser’s single-image limit at this resolution. Choose HD or the complete paginated report.');
   }

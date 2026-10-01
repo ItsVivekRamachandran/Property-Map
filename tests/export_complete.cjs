@@ -103,15 +103,22 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
       const form = document.querySelector('#exportForm'), rows = exportRows(form);
       const names = Object.fromEntries(S.countries.map(c => [c.code, c.name]));
       const plan = ExportEngine.posterPlan(rows, names, 3840, project().name);
+      const sample = {...project(), properties: project().properties.slice(0, 44)};
+      const sampleRows = ExportEngine.rowsFor(sample, 'all', []);
+      const samplePlan = ExportEngine.posterPlan(sampleRows, names, 3840, sample.name);
       const ctx = document.createElement('canvas').getContext('2d'); ctx.font = '18px Arial';
       return {count: plan.columns.flat().filter(item => item.type === 'property').length,
         allFit: plan.columns.every((column, i) => column.filter(item => item.type === 'property').every(item =>
           ctx.measureText(`${item.row.code}  ·  ${item.row.name}`).width + 50 <= plan.columnWidths[i])),
-        pixels: plan.width * plan.height * 4};
+        pixels: plan.width * plan.height * 4,
+        sampleColumns: samplePlan.columns.length,
+        sampleHeight: samplePlan.height};
     });
     assert.equal(posterLayout.count, 110);
     assert(posterLayout.allFit, 'No property name is clipped or wrapped in the side-by-side image');
     assert(posterLayout.pixels <= 32_000_000);
+    assert(posterLayout.sampleColumns >= 3, 'A 44-property poster uses enough columns to avoid empty space below the map');
+    assert(posterLayout.sampleHeight <= 1100, 'A 44-property poster stays close to the map-card height');
     await page.screenshot({path: root + '/tests/export-poster-option.png'});
     await page.evaluate(() => window.drawnCodes.clear());
     download = page.waitForEvent('download');
