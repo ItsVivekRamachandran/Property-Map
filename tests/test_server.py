@@ -89,4 +89,22 @@ class ServerTest(unittest.TestCase):
   self.assertEqual(p['regionRules']['USA:Nevada']['legendId'],'under-review')
   q=copy.deepcopy(p);q['properties'][0]['legendId']='missing';self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
   q=copy.deepcopy(p);q['regionRules']['USA:Not a real state']={'legendId':'under-review','competition':False};self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
+ def test_07_hidden_values_survive_contributor_save(self):
+  a=self.admin;p=copy.deepcopy(self.req(a,'/api/bootstrap')['projects'][0]);pid=p['id']
+  self.req(a,'/api/users','POST',{'email':'hidden@test.org','name':'hidden','role':'member','team':'Research','password':'test-long-password'},201)
+  uid=next(u['id'] for u in self.req(a,'/api/users') if u['name']=='hidden')
+  p=self.req(a,'/api/projects/'+pid+'/members','PUT',{'members':{**p.get('members',{}),uid:'contributor'}})
+  p['fields']=[{'id':'internal','label':'Internal score','type':'text','visibility':'admins','editable':'everyone','required':False,'options':[]}]
+  p['properties'][0]['custom']={'internal':'keep-me'};self.req(a,'/api/projects/'+pid,'PUT',p)
+  c=self.client();self.req(c,'/api/login','POST',{'email':'hidden@test.org','password':'test-long-password'})
+  cp=self.req(c,'/api/bootstrap')['projects'][0];self.assertNotIn('internal',cp['properties'][0]['custom'])
+  cp['properties'][1]['notes']='Unrelated contributor edit';self.req(c,'/api/projects/'+pid,'PUT',cp)
+  self.assertEqual(self.req(a,'/api/bootstrap')['projects'][0]['properties'][0]['custom']['internal'],'keep-me')
+ def test_08_seed_is_reproducible_and_us_states_match(self):
+  sys.path.insert(0,str(ROOT));from seed import seed_projects
+  self.assertEqual(seed_projects(),seed_projects())
+  atlas=json.loads((ROOT/'public/data/us-counties.json').read_text())['objects']['states']['geometries']
+  offered={g['properties']['name'] for g in atlas if int(g['id'])<60}
+  accepted={f['properties']['name'] for f in json.loads((ROOT/'public/data/USA.json').read_text())['features']}
+  self.assertEqual(offered,accepted)
 if __name__=='__main__':unittest.main(verbosity=2)

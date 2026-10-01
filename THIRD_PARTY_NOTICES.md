@@ -5,6 +5,7 @@
 - **D3 7.9.0**: ISC. Copyright 2010–2023 Mike Bostock. https://github.com/d3/d3 . See `public/vendor/d3-LICENSE`.
 - **topojson-client 3.1.0**: ISC. Copyright Mike Bostock. https://github.com/topojson/topojson-client . See `public/vendor/topojson-LICENSE`.
 - **pdf-lib 1.17.1**: MIT. Copyright Andrew Dillon. https://github.com/Hopding/pdf-lib . See `public/vendor/pdf-lib-LICENSE`.
+- **Material Symbols (Outlined)**: Apache License 2.0. Copyright Google LLC. https://github.com/google/material-design-icons . Path data for the icons in use is in `public/vendor/material-symbols.js`. See `public/vendor/material-symbols-LICENSE`.
 - **JSZip 3.10.1**: MIT/GPLv3 dual licensed. Copyright Stuart Knightley. https://github.com/Stuk/jszip . See `public/vendor/jszip-LICENSE`.
 
 Browser fonts use the user's system font stack. Generated design mockup images are not embedded in this website.

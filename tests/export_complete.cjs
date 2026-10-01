@@ -12,7 +12,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
   let browser;
   try {
     browser = await chromium.launch({
-      executablePath: process.env.CHROMIUM_PATH || '/tmp/pm-chromium/chromium', headless: true,
+      executablePath: require('./chromium_path.cjs'), headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=angle', '--use-angle=swiftshader']
     });
     const page = await browser.newPage({viewport: {width: 1512, height: 1050}, acceptDownloads: true});

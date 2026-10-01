@@ -32,9 +32,12 @@ mindmap
         Persistent PROPERTY_MAP_DATA required
         Intended behind HTTPS proxy
         Dockerfile entry point
+      GitHub Pages
+        github workflows pages.yml
+        Publishes the standalone preview on every push to main
     Browser application
       public index.html
-        Loads pinned vendor libraries
+        Loads pinned vendor libraries and Material Symbols icon paths
         Loads export-engine.js then app.js
       public app.js
         Central state object S
@@ -43,9 +46,12 @@ mindmap
         Delegated click change submit handlers
         D3 and TopoJSON map drawing
         Drawers for edit settings sharing and export
+        Team and access screen for shared-mode administrators only
+        Icons are Material Symbols from public vendor material-symbols.js
         Backup import and CSV download
       public styles.css
-        Visual system
+        Design tokens for spacing type colour radius and icon size
+        Rules in docs UI_STANDARDS.md
         Responsive and mobile layout
         Dialog and drawer styling
       public export-engine.js
@@ -144,12 +150,18 @@ mindmap
     Tests
       tests test_server.py
         Auth ACL validation CSRF conflicts exports
+        Hidden-value preservation and reproducible seed
       tests e2e.cjs
         Main browser CRUD settings map export mobile flow
       tests export_complete.cjs
         Large complete PDF PNG ZIP and poster guarantees
       tests offline_export.cjs
         Self-contained preview and offline exports
+        Required-field rollout in the standalone adapter
+      tests shared_access.cjs
+        Shared-mode sign-in accounts and project access
+      tests chromium_path.cjs
+        Browser lookup shared by the suites
       tests browser.cjs
         Quick visual smoke and screenshot
       tests accessibility_extreme.cjs
@@ -161,6 +173,7 @@ mindmap
       TopoJSON for US boundary conversion
       PDF-Lib for PDFs
       JSZip for multi-page PNG ZIPs
+      Material Symbols outlined icon paths
       Playwright from runtime environment for browser tests
 ```
 
@@ -182,18 +195,23 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 | Defaults, sample records, palettes, teams | `seed.py` | rebuild standalone preview |
 | Offline/self-contained preview | `build_preview.py` | generated `Property-Map.html`, `tests/offline_export.cjs` |
 | Country/state boundaries | `public/data/` | `prepare_data.py`, then `normalize_geo.cjs` |
-| Responsive appearance | `public/styles.css` | `tests/e2e.cjs` mobile assertions |
-| Deployment | `Dockerfile`, `README.md` | shared-mode environment handling in `server.py` |
+| Responsive appearance, spacing, type, colour, icons | `public/styles.css` | `docs/UI_STANDARDS.md`, `tests/e2e.cjs` mobile assertions |
+| Accounts and project access UI | `teamView` in `public/app.js` | `tests/shared_access.cjs` |
+| Deployment | `Dockerfile`, `README.md`, `.github/workflows/pages.yml` | shared-mode environment handling in `server.py` |
 
 ## High-value invariants
 
-- Do not edit `Property-Map.html`; run `python3 build_preview.py` after source, seed, vendor, or bundled geography changes.
+- Do not edit `Property-Map.html`; run `python3 build_preview.py` after source, seed, vendor, or bundled geography changes. The build is reproducible: seed IDs are fixed.
+- Pushing to `main` republishes the standalone preview on GitHub Pages.
+- UI values come from the tokens in `public/styles.css`: 4px spacing grid, 12px minimum text, WCAG AA contrast, Material Symbols icons.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
 - Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
 - Every project has 1–20 uniquely named map legends. Property and regional legend references must resolve to a project legend; regional keys must name a bundled country and state/province.
 - Project, property, and user teams must reference configured teams; a team cannot be removed while any project, property, or user still uses it.
 - Project `version` is the optimistic-lock token. Preserve 409 conflict behavior when changing saves.
-- The server must filter invisible custom values before responding and preserve fields a role cannot edit.
+- The server must filter invisible custom values before responding and preserve fields a role cannot edit or cannot see.
+- A newly required custom field binds only new or changed properties, in both the server and the standalone adapter.
+- The US state list offers only the 50 states and DC (FIPS below 60), matching what the validators accept.
 - Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
 - Complete exports must not silently omit records or truncate values. Oversized single-image exports must fail with a useful alternative.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
@@ -233,7 +251,9 @@ python3 tests/test_server.py
 python3 build_preview.py
 
 # Browser suites use local Playwright dependencies, or CODEX_PRIMARY_RUNTIME_NODE_MODULES when supplied.
+# Chromium: CHROMIUM_PATH if set, otherwise Playwright's own download (npx playwright install chromium).
 node tests/e2e.cjs
+node tests/shared_access.cjs
 node tests/accessibility_extreme.cjs
 node tests/export_complete.cjs
 node tests/offline_export.cjs

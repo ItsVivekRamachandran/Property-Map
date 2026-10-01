@@ -12,7 +12,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
   await new Promise((resolve, reject) => {server.stdout.once('data', resolve); server.once('error', reject)});
   let browser;
   try {
-    browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || '/tmp/pm-chromium/chromium', headless: true});
+    browser = await chromium.launch({executablePath: require('./chromium_path.cjs'), headless: true});
     const context = await browser.newContext({viewport: {width: 1280, height: 900}, bypassCSP: true});
     const page = await context.newPage(), errors = [];
     page.on('pageerror', error => errors.push(error.message));

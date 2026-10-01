@@ -137,7 +137,7 @@ def validate_project(p,config,old=None,u=None):
   prev=old_by_id.get(r['id'],{})
   for f in fs:
    active=not f.get('condition') or r.get('status')==f['condition'];v=r.get('custom',{}).get(f['id'])
-   if old and not field_allowed(f,role,'editable'):
+   if old and not (field_allowed(f,role,'editable') and field_allowed(f,role)):
     r.setdefault('custom',{})[f['id']]=prev.get('custom',{}).get(f['id']);continue
    if active and (not prev or r!=prev) and f.get('required') and field_allowed(f,role) and (v is None or v=='' or v is False):raise ValueError(f["label"]+' is required.')
    if v not in [None,'']:

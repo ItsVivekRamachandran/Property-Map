@@ -40,9 +40,9 @@ Start the server with:
 python server.py --host 0.0.0.0 --port 8000
 ```
 
-Place it behind an HTTPS reverse proxy and mount the data directory on durable storage. The included Dockerfile provides a container entry point. This package has **not been deployed**; no public or organizational URL has been created.
+Place it behind an HTTPS reverse proxy and mount the data directory on durable storage. The included Dockerfile provides a container entry point. The server edition has **not been deployed**. The standalone preview is published to GitHub Pages by `.github/workflows/pages.yml` on every push to `main`.
 
-The app supplies its own email/password accounts; ChatGPT workspace SSO is not integrated. Create accounts in **Team & access**, then grant Viewer or Contributor access per project. Administrators can access all projects. No invitation emails are sent. Password-reset and SSO workflows are future integration work. If you switch an existing local database to shared mode, a real administrator is created and the local preview identity cannot sign in.
+The app supplies its own email/password accounts; ChatGPT workspace SSO is not integrated. Administrators create accounts in **Team & access** (shown only to administrators of the shared edition), then grant Viewer or Contributor access per project. Administrators can access all projects. No invitation emails are sent. Password-reset and SSO workflows are future integration work. If you switch an existing local database to shared mode, a real administrator is created and the local preview identity cannot sign in.
 
 ## Working features
 
@@ -70,9 +70,9 @@ The application stores custom-field visibility on the server and filters hidden 
 ## Source layout
 
 - `public/app.js`: application, maps, dialogs, export rendering and offline storage adapter.
-- `public/styles.css`: responsive visual system.
+- `public/styles.css`: responsive visual system built on design tokens; rules in `docs/UI_STANDARDS.md`.
 - `public/data/`: bundled geographic data.
-- `public/vendor/`: pinned browser libraries.
+- `public/vendor/`: pinned browser libraries and Material Symbols icon paths.
 - `server.py`: HTTP API, SQLite storage, password hashing, sessions, ACLs and optimistic version checks.
 - `seed.py`: sample projects and defaults.
 - `build_preview.py`: generates the standalone HTML preview.
@@ -87,11 +87,12 @@ The application stores custom-field visibility on the server and filters hidden 
 python3 tests/test_server.py
 npm install
 npm run test:e2e
+npm run test:shared
 npm run test:a11y
 npm run test:exports
 ```
 
-The browser suites use the local Playwright dependency, or resolve it from `CODEX_PRIMARY_RUNTIME_NODE_MODULES` when supplied, and accept `CHROMIUM_PATH`. They use temporary SQLite directories and do not modify production records.
+The browser suites use the local Playwright dependency, or resolve it from `CODEX_PRIMARY_RUNTIME_NODE_MODULES` when supplied, and accept `CHROMIUM_PATH`; without it they use Playwright's own Chromium (`npx playwright install chromium`). They use temporary SQLite directories and do not modify production records.
 
 ## Deployment considerations
 
