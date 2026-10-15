@@ -35,8 +35,7 @@ const ExportEngine = (() => {
       {label: 'PROPERTY NAME', width: 290, cell: r => value(r.name)},
       {label: 'COUNTRY', width: 150, cell: r => value(countryNames[r.country] || r.country)},
       {label: 'STATE / PROVINCE', width: 200, cell: r => value(r.state)},
-      {label: 'COUNTY / DISTRICT', width: 190, cell: r => value(r.district)},
-      {label: 'CITY', width: 150, cell: r => value(r.city)},
+      {label: 'CITY', width: 190, cell: r => value(r.district || r.city)},
       {label: 'STATUS', width: 140, cell: r => value(r.status)},
       {label: 'TEAM', width: 170, cell: r => value(r.team)}
     ];
@@ -61,7 +60,7 @@ const ExportEngine = (() => {
     const groups = [], oneCountry = new Set(rows.map(r => r.country)).size <= 1;
     for (const row of rows) {
       const key = row.country + ':' + row.state;
-      if (!groups.length || groups.at(-1).key !== key) groups.push({key, state: row.state, label: oneCountry ? value(row.state) : `${countryNames[row.country] || row.country} / ${value(row.state)}`, rows: []});
+      if (!groups.length || groups.at(-1).key !== key) groups.push({key, country: row.country, state: row.state, label: oneCountry ? value(row.state) : `${countryNames[row.country] || row.country} / ${value(row.state)}`, rows: []});
       groups.at(-1).rows.push(row);
     }
     // Largest region first, as on the map's dot colours.
@@ -202,7 +201,7 @@ const ExportEngine = (() => {
     c.fillText(`${rows.length} properties in directory  ·  Map focus: ${countryName}${mapFocus ? ' / ' + mapFocus : ''}`, 70, 174);
     c.drawImage(img, 58, 252, 1220, 624);
     const byRegion = {};
-    rows.forEach(r => {const key = regionLabel(r) || countryName; byRegion[key] = (byRegion[key] || 0) + 1});
+    rows.forEach(r => {const key = context.world ? context.countryNames[r.country] || r.country : regionLabel(r) || countryName; byRegion[key] = (byRegion[key] || 0) + 1});
     metrics(c, 1330, rows, project, byRegion);
     if (includeLegend) {
       const keys = mapLegendEntries(project, layers);
@@ -211,7 +210,7 @@ const ExportEngine = (() => {
     }
     c.strokeStyle = '#e4dfe8'; c.beginPath(); c.moveTo(70, 981); c.lineTo(Math.max(1850, width - 70), 981); c.stroke();
     c.fillStyle = '#8f8597'; c.font = '15px Arial';
-    c.fillText('The map shows the selected country. The directory below includes every property in the chosen export scope.', 70, 1016);
+    c.fillText('The map shows the selected view. The directory below includes every property in the chosen export scope.', 70, 1016);
     if (includeDate) {c.textAlign = 'right'; c.fillText(new Date().toLocaleDateString(), Math.max(1850, width - 70), 1016); c.textAlign = 'left'}
   }
 
@@ -219,7 +218,7 @@ const ExportEngine = (() => {
   // that runs over a page is headed "(continued)", and a section line is never the last line of a page.
   function pdfPages(context) {
     const PAGE = 28, pages = [[]], rows = context.rows;
-    const section = (row, continued) => ({type: 'section', label: value(row.state) + (continued ? ' (continued)' : ''), count: rows.filter(r => r.country === row.country && r.state === row.state).length});
+    const section = (row, continued) => ({type: 'section', label: (context.world ? `${context.countryNames[row.country] || row.country} / ` : '') + value(row.state) + (continued ? ' (continued)' : ''), count: rows.filter(r => r.country === row.country && r.state === row.state).length});
     rows.forEach((row, index) => {
       const previous = rows[index - 1], opens = context.groupByState && (!previous || previous.state !== row.state || previous.country !== row.country);
       if (pages.at(-1).length + (opens ? 2 : 1) > PAGE) {pages.push([]); if (context.groupByState && !opens) pages.at(-1).push(section(row, true))}
@@ -318,7 +317,7 @@ const ExportEngine = (() => {
       for (const item of column) {
         const lead = item.type === 'group' ? plan.groupH - plan.rowH : 0;
         if (item.type === 'group') {
-          c.fillStyle = context.dotColors?.[item.group.state] || accent;
+          c.fillStyle = context.dotColors?.[context.world ? item.group.country : item.group.state] || accent;
           c.beginPath(); c.arc(x + size * .4, y + plan.groupH - size * .75, size * .36, 0, Math.PI * 2); c.fill();
           c.fillStyle = theme.ink; c.font = `600 ${size}px Arial`;
         } else {c.fillStyle = theme.sub; c.font = `${size}px Arial`}

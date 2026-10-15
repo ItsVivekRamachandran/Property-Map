@@ -8,6 +8,7 @@ from seed import seed_projects,DEFAULT_CONFIG,PALETTE,LEGENDS,uid
 ROOT=Path(__file__).parent; PUBLIC=ROOT/'public'; DATA=Path(os.environ.get('PROPERTY_MAP_DATA',str(ROOT/'data')))
 DATA.mkdir(exist_ok=True,parents=True); DB=DATA/'property-map.sqlite3'
 LOCAL=os.environ.get('PROPERTY_MAP_MODE','local')=='local'
+EMAIL_DOMAIN='igt.com'
 def db():
  c=sqlite3.connect(DB,timeout=15);c.row_factory=sqlite3.Row;return c
 def password_hash(p,salt=None):
@@ -16,17 +17,51 @@ def password_hash(p,salt=None):
 def verify_password(p,h):return hmac.compare_digest(password_hash(p,h.split(':')[0]),h)
 def init():
  with db() as c:
-  c.executescript('''CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE,name TEXT,role TEXT,team TEXT,password TEXT);CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT,expires REAL);CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS config(id INTEGER PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS exports(id TEXT PRIMARY KEY,project_id TEXT,name TEXT,mime TEXT,data BLOB);CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,time REAL,user_id TEXT,action TEXT,project_id TEXT);''')
+  c.executescript('''CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,email TEXT UNIQUE,name TEXT,role TEXT,team TEXT,password TEXT,designation TEXT DEFAULT '',department TEXT DEFAULT '',active INTEGER DEFAULT 1,created REAL DEFAULT 0,updated REAL DEFAULT 0);CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY,user_id TEXT,expires REAL);CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS config(id INTEGER PRIMARY KEY,body TEXT);CREATE TABLE IF NOT EXISTS exports(id TEXT PRIMARY KEY,project_id TEXT,name TEXT,mime TEXT,data BLOB);CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,time REAL,user_id TEXT,action TEXT,project_id TEXT);''')
+  columns={r['name'] for r in c.execute('PRAGMA table_info(users)')}
+  for name,definition in [('designation',"TEXT DEFAULT ''"),('department',"TEXT DEFAULT ''"),('active','INTEGER DEFAULT 1'),('created','REAL DEFAULT 0'),('updated','REAL DEFAULT 0')]:
+   if name not in columns:c.execute(f'ALTER TABLE users ADD COLUMN {name} {definition}')
+  c.execute("UPDATE users SET designation='Administrator' WHERE role='admin' AND designation=''")
+  c.execute("UPDATE users SET department=COALESCE(NULLIF(team,''),'Administration') WHERE department=''")
+  c.execute('UPDATE users SET active=1 WHERE active IS NULL')
+  if not LOCAL:
+   for row in list(c.execute("SELECT id,email FROM users WHERE id!='local'")):
+    if not str(row['email']).lower().endswith('@'+EMAIL_DOMAIN):
+     try:c.execute('UPDATE users SET email=? WHERE id=?',(account_email(str(row['email']).split('@',1)[0]),row['id']))
+     except (ValueError,sqlite3.IntegrityError) as e:raise SystemExit('Could not migrate an existing account to @igt.com: '+str(e))
+  try:c.execute('CREATE UNIQUE INDEX IF NOT EXISTS users_email_nocase ON users(email COLLATE NOCASE)')
+  except sqlite3.IntegrityError:raise SystemExit('Existing accounts contain duplicate email addresses that differ only by letter case.')
   c.execute('INSERT OR IGNORE INTO config VALUES(1,?)',(json.dumps(DEFAULT_CONFIG),))
   if LOCAL:
-   c.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?,?,?)',('local','local@preview','Local workspace','admin','West Region',''))
+   c.execute("INSERT OR IGNORE INTO users(id,email,name,role,team,password,designation,department,active,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)",('local','local@preview','Local workspace','admin','West Region','','Administrator','Local',1,time.time(),time.time()))
   elif not c.execute("SELECT 1 FROM users WHERE id!='local'").fetchone():
    p=os.environ.get('PROPERTY_MAP_ADMIN_PASSWORD','')
    if len(p)<12:raise SystemExit('Set PROPERTY_MAP_ADMIN_PASSWORD to at least 12 characters for shared mode.')
-   c.execute('INSERT INTO users VALUES(?,?,?,?,?,?)',('admin',os.environ.get('PROPERTY_MAP_ADMIN_EMAIL','admin@example.com').lower(),'Workspace admin','admin','West Region',password_hash(p)))
+   try:email=account_email(os.environ.get('PROPERTY_MAP_ADMIN_EMAIL','vivek.r@igt.com'))
+   except ValueError as e:raise SystemExit(str(e))
+   now=time.time();c.execute('INSERT INTO users(id,email,name,role,team,password,designation,department,active,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',('admin',email,'Workspace admin','admin','West Region',password_hash(p),'Administrator','Administration',1,now,now))
   if not c.execute('SELECT 1 FROM projects').fetchone():
    for p in seed_projects('local' if LOCAL else 'admin'):c.execute('INSERT INTO projects VALUES(?,?)',(p['id'],json.dumps(p)))
-def user_dict(r):return {k:r[k] for k in ['id','email','name','role','team']}
+def account_email(value):
+ value=str(value or '').strip().lower()
+ if '@' in value:
+  local,domain=value.rsplit('@',1)
+  if domain!=EMAIL_DOMAIN:raise ValueError(f'Accounts must use @{EMAIL_DOMAIN}.')
+ else:local=value
+ if not re.fullmatch(r"[a-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}",local) or local.startswith('.') or local.endswith('.') or '..' in local:raise ValueError('Enter a valid email username.')
+ return local+'@'+EMAIL_DOMAIN
+def user_dict(r):
+ out={k:r[k] for k in ['id','email','name','role','team','designation','department']};out['username']=r['email'].rsplit('@',1)[0];out['active']=bool(r['active']);return out
+def validate_user(b,config):
+ email=account_email(b.get('username',b.get('email','')))
+ for key,label,limit in [('name','Full name',120),('designation','Designation',120),('department','Department',120)]:
+  if not isinstance(b.get(key),str) or not b[key].strip() or len(b[key].strip())>limit:raise ValueError(f'{label} is required (maximum {limit} characters).')
+ if b.get('role') not in ['admin','member']:raise ValueError('Invalid account role.')
+ if b.get('team','') not in config.get('teams',[]):raise ValueError('Choose a configured team.')
+ return email,b['name'].strip(),b['designation'].strip(),b['department'].strip()
+def personal_project(owner,name,team):
+ title=(name.strip()+' Workspace')[:100]
+ return {'id':uid(),'name':title,'description':'Private workspace for '+name.strip()+'.','team':team,'country':'IND','owner':owner,'members':{},'properties':[],'palette':dict(PALETTE),'legends':[dict(x) for x in LEGENDS],'fields':[],'regionRules':{},'exports':[],'version':1,'personal':True}
 def role_for(u,p):return 'admin' if u['role']=='admin' or p['owner']==u['id'] else p.get('members',{}).get(u['id'])
 def fields_for(p,config):
  out={}
@@ -166,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
   if LOCAL:return user_dict(c.execute("SELECT * FROM users WHERE id='local'").fetchone())
   cookie=SimpleCookie();cookie.load(self.headers.get('Cookie',''));t=cookie.get('pm_session')
   if not t:return None
-  r=c.execute('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>?',(hashlib.sha256(t.value.encode()).hexdigest(),time.time())).fetchone()
+  r=c.execute('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token=? AND s.expires>? AND u.active=1',(hashlib.sha256(t.value.encode()).hexdigest(),time.time())).fetchone()
   return user_dict(r) if r else None
  def do_GET(self):self.dispatch('GET')
  def do_POST(self):self.dispatch('POST')
@@ -181,7 +216,7 @@ class Handler(BaseHTTPRequestHandler):
   path=urllib.parse.urlsplit(self.path).path
   if not path.startswith('/api/'):
    if method!='GET':return self.send(405,{'error':'Method not allowed'})
-   rel='index.html' if path=='/' else urllib.parse.unquote(path).lstrip('/')
+   rel='index.html' if path in ['/','/admin'] else urllib.parse.unquote(path).lstrip('/')
    f=(PUBLIC/rel).resolve()
    if not f.is_relative_to(PUBLIC.resolve()) or not f.is_file():return self.send(404,{'error':'Not found'})
    return self.send(data=f.read_bytes(),mime=mimetypes.guess_type(f.name)[0] or 'application/octet-stream')
@@ -190,14 +225,28 @@ class Handler(BaseHTTPRequestHandler):
    origin=self.headers.get('Origin')
    if origin and urllib.parse.urlsplit(origin).netloc!=self.headers.get('Host'):return self.send(403,{'error':'Invalid request origin.'})
   with db() as c:
-   if path=='/api/login' and method=='POST':
+   if path=='/api/admin/login' and method=='POST':
     b=self.body();ip=self.client_address[0];attempts=getattr(self.server,'attempts',{});c.execute('DELETE FROM sessions WHERE expires<=?',(time.time(),))
     recent=[t for t in attempts.get(ip,[]) if t>time.time()-300]
     if len(recent)>=12:return self.send(429,{'error':'Too many attempts. Try again in five minutes.'})
-    r=c.execute("SELECT * FROM users WHERE email=? AND password!=''",(b.get('email','').lower().strip(),)).fetchone()
+    try:email=account_email(b.get('username',b.get('email','')))
+    except ValueError:email=''
+    r=c.execute("SELECT * FROM users WHERE email=? COLLATE NOCASE AND password!='' AND active=1 AND role='admin'",(email,)).fetchone()
     if not r or not verify_password(b.get('password',''),r['password']):
-     recent.append(time.time());attempts[ip]=recent;self.server.attempts=attempts;return self.send(401,{'error':'Email or password is incorrect.'})
+     recent.append(time.time());attempts[ip]=recent;self.server.attempts=attempts;return self.send(401,{'error':'Admin email or password is incorrect.'})
     attempts.pop(ip,None);self.server.attempts=attempts
+    t=secrets.token_urlsafe(32);c.execute('INSERT INTO sessions VALUES(?,?,?)',(hashlib.sha256(t.encode()).hexdigest(),r['id'],time.time()+43200))
+    secure='; Secure' if os.environ.get('PROPERTY_MAP_SECURE_COOKIE')=='1' else ''
+    return self.send(obj={'ok':True},headers={'Set-Cookie':'pm_session='+t+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200'+secure})
+   if path=='/api/login' and method=='POST':
+    b=self.body();c.execute('DELETE FROM sessions WHERE expires<=?',(time.time(),))
+    email=account_email(b.get('username',b.get('email','')))
+    r=c.execute('SELECT * FROM users WHERE email=? COLLATE NOCASE',(email,)).fetchone()
+    if r and (not r['active'] or r['role']=='admin'):return self.send(401,{'error':'This account must use the administrator sign-in.' if r['role']=='admin' else 'This account is inactive.'})
+    if not r:
+     config=json.loads(c.execute('SELECT body FROM config WHERE id=1').fetchone()[0]);user_id=uid();username=email.rsplit('@',1)[0];name=re.sub(r'[._-]+',' ',username).strip().title() or username;team=config['teams'][0];now=time.time()
+     c.execute('INSERT INTO users(id,email,name,role,team,password,designation,department,active,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(user_id,email,name,'member',team,'','User','Unassigned',1,now,now))
+     p=personal_project(user_id,name,team);validate_project(p,config,u={'id':user_id,'role':'member'});c.execute('INSERT INTO projects VALUES(?,?)',(p['id'],json.dumps(p)));c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(now,user_id,'user.self_enroll',p['id']));r=c.execute('SELECT * FROM users WHERE id=?',(user_id,)).fetchone()
     t=secrets.token_urlsafe(32);c.execute('INSERT INTO sessions VALUES(?,?,?)',(hashlib.sha256(t.encode()).hexdigest(),r['id'],time.time()+43200))
     secure='; Secure' if os.environ.get('PROPERTY_MAP_SECURE_COOKIE')=='1' else ''
     return self.send(obj={'ok':True},headers={'Set-Cookie':'pm_session='+t+'; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200'+secure})
@@ -233,17 +282,42 @@ class Handler(BaseHTTPRequestHandler):
     c.execute('UPDATE config SET body=? WHERE id=1',(json.dumps(b),));c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(time.time(),u['id'],'config.update',None));return self.send(obj={'ok':True})
    if path=='/api/users':
     if u['role']!='admin':return self.send(403,{'error':'Administrator access required.'})
-    if method=='GET':return self.send(obj=[user_dict(r) for r in c.execute('SELECT * FROM users')])
+    if method=='GET':return self.send(obj=[user_dict(r) for r in c.execute('SELECT * FROM users ORDER BY active DESC,name COLLATE NOCASE')])
     if method=='POST':
      b=self.body()
-     if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+',b.get('email','')):raise ValueError('Enter a valid email address.')
-     if len(b.get('password',''))<12:raise ValueError('Use a password of at least 12 characters.')
-     if b.get('role') not in ['admin','member']:raise ValueError('Invalid account role.')
-     if not isinstance(b.get('name'),str) or not b['name'].strip() or len(b['name'])>120:raise ValueError('Name is required (maximum 120 characters).')
-     if b.get('team','') not in config.get('teams',[]):raise ValueError('Choose a configured team.')
-     try:c.execute('INSERT INTO users VALUES(?,?,?,?,?,?)',(uid(),b['email'].lower(),b['name'],b['role'],b.get('team',''),password_hash(b['password'])))
+     if b.get('role')=='admin' and len(b.get('password',''))<12:raise ValueError('Administrator accounts require a password of at least 12 characters.')
+     email,name,designation,department=validate_user(b,config);user_id=uid();now=time.time()
+     stored_password=password_hash(b['password']) if b.get('role')=='admin' else ''
+     try:c.execute('INSERT INTO users(id,email,name,role,team,password,designation,department,active,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(user_id,email,name,b['role'],b['team'],stored_password,designation,department,1,now,now))
      except sqlite3.IntegrityError:raise ValueError('An account with that email already exists.')
+     p=personal_project(user_id,name,b['team']);validate_project(p,config,u={'id':user_id,'role':b['role']});c.execute('INSERT INTO projects VALUES(?,?)',(p['id'],json.dumps(p)))
      c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(time.time(),u['id'],'user.create',None));return self.send(201,{'ok':True})
+   m=re.fullmatch(r'/api/users/([\w-]+)',path)
+   if m:
+    if u['role']!='admin':return self.send(403,{'error':'Administrator access required.'})
+    target=c.execute('SELECT * FROM users WHERE id=?',(m[1],)).fetchone()
+    if not target:return self.send(404,{'error':'Account not found.'})
+    if method=='PUT':
+     b=self.body();email,name,designation,department=validate_user(b,config);active=b.get('active',True)
+     if not isinstance(active,bool):raise ValueError('Invalid account status.')
+     if target['id']==u['id'] and not active:raise ValueError('You cannot deactivate your own account.')
+     if target['role']!='admin' and b['role']=='admin' and not target['password']:raise ValueError('Email-only member accounts cannot be promoted to administrator.')
+     if target['role']=='admin' and (b['role']!='admin' or not active) and c.execute("SELECT COUNT(*) FROM users WHERE role='admin' AND active=1").fetchone()[0]<=1:raise ValueError('Keep at least one active administrator.')
+     try:c.execute('UPDATE users SET email=?,name=?,role=?,team=?,designation=?,department=?,active=?,updated=? WHERE id=?',(email,name,b['role'],b['team'],designation,department,int(active),time.time(),target['id']))
+     except sqlite3.IntegrityError:raise ValueError('An account with that email already exists.')
+     if not active:c.execute('DELETE FROM sessions WHERE user_id=?',(target['id'],))
+     c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(time.time(),u['id'],'user.update',None));return self.send(obj=user_dict(c.execute('SELECT * FROM users WHERE id=?',(target['id'],)).fetchone()))
+    if method=='DELETE':
+     if target['id']==u['id']:raise ValueError('You cannot delete your own account.')
+     if target['role']=='admin' and target['active'] and c.execute("SELECT COUNT(*) FROM users WHERE role='admin' AND active=1").fetchone()[0]<=1:raise ValueError('Keep at least one active administrator.')
+     owned=[]
+     for row in list(c.execute('SELECT id,body FROM projects')):
+      p=json.loads(row['body'])
+      if p.get('owner')==target['id']:owned.append(row['id'])
+      elif target['id'] in p.get('members',{}):
+       del p['members'][target['id']];p['version']=p.get('version',1)+1;c.execute('UPDATE projects SET body=? WHERE id=?',(json.dumps(p),row['id']))
+     for pid in owned:c.execute('DELETE FROM exports WHERE project_id=?',(pid,));c.execute('DELETE FROM projects WHERE id=?',(pid,))
+     c.execute('DELETE FROM sessions WHERE user_id=?',(target['id'],));c.execute('DELETE FROM users WHERE id=?',(target['id'],));c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(time.time(),u['id'],'user.delete',None));return self.send(obj={'ok':True,'deletedProjects':len(owned)})
    if path=='/api/import' and method=='POST':
     items=self.body().get('projects')
     if not isinstance(items,list) or not items or len(items)>50:raise ValueError('Import between 1 and 50 projects at a time.')

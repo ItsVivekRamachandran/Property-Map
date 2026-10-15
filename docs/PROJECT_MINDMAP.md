@@ -28,7 +28,11 @@ mindmap
         Automatic local admin identity
       Python server shared mode
         PROPERTY_MAP_MODE shared
-        Email and password sessions
+        Admin password session at slash admin
+        Member email-only session at slash
+        Fixed igt.com account domain
+        Required name designation and department
+        Private personal workspace per account
         Project ACLs enforced server side
         Persistent PROPERTY_MAP_DATA required
         Intended behind HTTPS proxy
@@ -43,14 +47,16 @@ mindmap
       public app.js
         Central state object S
         API adapter selects browser or server storage
+        Shared screens poll the local server every 15 seconds when no drawer is open
         Render functions return HTML strings
         Delegated click change submit handlers
         D3 and TopoJSON map drawing
+        World view aggregates by country and drills into country detail
         Dot style draws one dot per property per region
         Drawers for edit settings sharing and export
         Team and access screen for shared-mode administrators only
         Icons are Material Symbols from public vendor material-symbols.js
-        Backup import and CSV download
+        Backup import and CSV import download
       public styles.css
         Design tokens for spacing type colour radius and icon size
         Rules in docs UI_STANDARDS.md
@@ -84,10 +90,10 @@ mindmap
         exports as blobs
         audit
       API
-        POST login and logout
+        POST member login admin login and logout
         GET bootstrap
         PUT config
-        GET and POST users
+        GET POST PUT and DELETE users
         POST atomic project import
         POST projects
         PUT and DELETE project by id
@@ -105,7 +111,7 @@ mindmap
         Export metadata
       Property
         Name and unique project code
-        Country state district city and address
+        Country state one city value and address
         Live or Opportunity status
         Project map legend reference
         Team notes and competitor flag
@@ -127,7 +133,11 @@ mindmap
         Contributor edits permitted project data
         Viewer reads and exports
         No membership means no project access
+        New users own one private personal workspace
     Geography
+      public data world.json
+        Lightweight 250-country global view
+        Generated from bundled country region files
       public data countries.json
         Country index
       public data three-letter-code JSON
@@ -136,10 +146,12 @@ mindmap
         US states and counties TopoJSON
       prepare_data.py
         Simplifies raw Natural Earth boundaries
+      build_world.py
+        Rebuilds the global country view
       normalize_geo.cjs
         Corrects polygon winding for D3
       Limitations
-        Non-US districts are manual text
+        Non-US cities are manual text
         Coordinates are not geocoded
         Coordinates are not polygon-validated
     Seed and generated artifacts
@@ -210,10 +222,13 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Pushing to `main` republishes the standalone preview on GitHub Pages.
 - UI values come from the tokens in `public/styles.css`: 4px spacing grid, 12px minimum text, WCAG AA contrast, Material Symbols icons.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
+- World is a read-only map scope, never a project or property country. It aggregates every project property by country and country selection drills into the existing state/province map.
+- CSV property imports append to the current project, use the same ordered columns as Download CSV, and validate every row before the full project is committed; an invalid row or duplicate code rejects the entire upload.
 - Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
 - Every project has 1–20 uniquely named map legends. Property and regional legend references must resolve to a project legend; regional keys must name a bundled country and state/province.
 - Project, property, and user teams must reference configured teams; a team cannot be removed while any project, property, or user still uses it.
 - Project `version` is the optimistic-lock token. Preserve 409 conflict behavior when changing saves.
+- Shared clients check for changed project versions every 15 seconds while visible and no form drawer is open, then refresh from the local server without bypassing conflict protection.
 - The server must filter invisible custom values before responding and preserve fields a role cannot edit or cannot see.
 - A newly required custom field binds only new or changed properties, in both the server and the standalone adapter.
 - The US state list offers only the 50 states and DC (FIPS below 60), matching what the validators accept.
@@ -224,6 +239,10 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Dots in the dot map style show counts per region, never locations; the map, side list and slide share one colour per region.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
 - Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.
+- Shared-mode account addresses are normalized to lowercase and must use the fixed `@igt.com` domain. Full name, designation and department are required, and email uniqueness is case-insensitive.
+- `/admin` shows the administrator email/password form and uses the password-only administrator endpoint. `/` shows email-only member access; an unknown valid address is provisioned with a private workspace. Email-only access is intentionally limited to trusted local use because it does not prove mailbox ownership.
+- Creating an account also creates one private personal workspace owned by that user. Deleting an account deletes its owned projects and exports, removes its memberships and sessions, and must never remove the current or final active administrator.
+- The property form exposes one City field. It writes the legacy `district` key for backup compatibility, falls back to the old `city` key when reading historical rows, and clears the duplicate key on the next save.
 - Non-GET API requests require `X-Property-Map: 1` and, when present, a same-host `Origin`.
 
 ## Data shape cheat sheet
@@ -231,17 +250,24 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 ```text
 config = { accountName, displayName, palette, fields[], teamFields{team: fields[]}, teams[] }
 
+user = {
+  id, username, email, name, designation, department,
+  role: admin|member, team, active
+}
+
 project = {
   id, name, description, team, country, owner, members{userId: viewer|contributor},
   properties[], palette, legends[{id, label, color}], fields[],
   regionRules{"COUNTRY:Region": {legendId, competition}},
-  exports[{id, name, mime, date}], version, demo
+  exports[{id, name, mime, date}], version, demo, personal
 }
 
 property = {
   id, name, code, country, state, district, city, address,
   status: Live|Opportunity, legendId, competitor, team, notes, lat, lng, custom{fieldId: value}
 }
+
+UI note: `district` is the canonical City value; `city` remains only for reading older backups.
 
 field = {
   id, label, type: text|number|date|select|checkbox,

@@ -4,12 +4,12 @@ class ServerTest(unittest.TestCase):
  @classmethod
  def setUpClass(cls):
   cls.tmp=tempfile.TemporaryDirectory();s=socket.socket();s.bind(('127.0.0.1',0));port=s.getsockname()[1];s.close();cls.base=f'http://127.0.0.1:{port}'
-  env={**os.environ,'PROPERTY_MAP_MODE':'shared','PROPERTY_MAP_DATA':cls.tmp.name,'PROPERTY_MAP_ADMIN_EMAIL':'admin@test.org','PROPERTY_MAP_ADMIN_PASSWORD':'strong-password-for-tests'}
+  env={**os.environ,'PROPERTY_MAP_MODE':'shared','PROPERTY_MAP_DATA':cls.tmp.name,'PROPERTY_MAP_ADMIN_EMAIL':'admin@igt.com','PROPERTY_MAP_ADMIN_PASSWORD':'strong-password-for-tests'}
   cls.proc=subprocess.Popen([sys.executable,str(ROOT/'server.py'),'--port',str(port)],env=env,stdout=subprocess.DEVNULL)
   for _ in range(60):
    try:urllib.request.urlopen(cls.base);break
    except Exception:time.sleep(.05)
-  cls.admin=cls.client();cls.req(cls.admin,'/api/login','POST',{'email':'admin@test.org','password':'strong-password-for-tests'})
+  cls.admin=cls.client();cls.req(cls.admin,'/api/admin/login','POST',{'username':'admin','password':'strong-password-for-tests'})
  @classmethod
  def tearDownClass(cls):cls.proc.terminate();cls.proc.wait();cls.tmp.cleanup()
  @staticmethod
@@ -26,15 +26,15 @@ class ServerTest(unittest.TestCase):
  def test_02_crud_acl_conflict_and_fields(self):
   a=self.admin;b=self.req(a,'/api/bootstrap');p=b['projects'][0];pid=p['id'];self.assertEqual(len(p['properties']),44)
   for n in ['viewer','contributor','outsider']:
-   self.req(a,'/api/users','POST',{'email':n+'@test.org','name':n,'role':'member','team':'Research','password':'test-long-password'},201)
+   self.req(a,'/api/users','POST',{'username':n,'name':n,'designation':'Reviewer','department':'Strategy','role':'member','team':'Research','password':'test-long-password'},201)
   users={u['name']:u['id'] for u in self.req(a,'/api/users')}
   p=self.req(a,'/api/projects/'+pid+'/members','PUT',{'members':{users['viewer']:'viewer',users['contributor']:'contributor'}})
   clients={}
   for n in users:
    if n=='Workspace admin':continue
-   clients[n]=self.client();self.req(clients[n],'/api/login','POST',{'email':n+'@test.org','password':'test-long-password'})
+   clients[n]=self.client();self.req(clients[n],'/api/login','POST',{'username':n})
   self.req(clients['outsider'],'/api/projects/'+pid,'PUT',p,403)
-  self.assertEqual(self.req(clients['outsider'],'/api/bootstrap')['projects'],[])
+  outsider_projects=self.req(clients['outsider'],'/api/bootstrap')['projects'];self.assertEqual(len(outsider_projects),1);self.assertTrue(outsider_projects[0]['personal'])
   self.req(clients['viewer'],'/api/projects/'+pid,'PUT',p,403)
   p['fields']=[{'id':'secret','label':'Private score','type':'text','visibility':'admins','editable':'admins','required':False,'options':[]}]
   p['properties'][0]['custom']={'secret':'admin-only'};old=copy.deepcopy(p);p=self.req(a,'/api/projects/'+pid,'PUT',p)
@@ -79,7 +79,7 @@ class ServerTest(unittest.TestCase):
   self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
   cfg=copy.deepcopy(self.req(self.admin,'/api/bootstrap')['config']);cfg['teams']=[t for t in cfg['teams'] if t!='West Region']
   self.req(self.admin,'/api/config','PUT',cfg,400)
-  self.req(self.admin,'/api/users','POST',{'email':'wrong-team@test.org','name':'Wrong team','role':'member','team':'Not configured','password':'test-long-password'},400)
+  self.req(self.admin,'/api/users','POST',{'username':'wrong-team','name':'Wrong team','designation':'Reviewer','department':'Strategy','role':'member','team':'Not configured','password':'test-long-password'},400)
  def test_06_map_legend_validation(self):
   p=copy.deepcopy(self.req(self.admin,'/api/bootstrap')['projects'][0])
   p['legends'].append({'id':'under-review','label':'Under review','color':'#d14f7b'})
@@ -91,12 +91,12 @@ class ServerTest(unittest.TestCase):
   q=copy.deepcopy(p);q['regionRules']['USA:Not a real state']={'legendId':'under-review','competition':False};self.req(self.admin,'/api/projects/'+p['id'],'PUT',q,400)
  def test_07_hidden_values_survive_contributor_save(self):
   a=self.admin;p=copy.deepcopy(self.req(a,'/api/bootstrap')['projects'][0]);pid=p['id']
-  self.req(a,'/api/users','POST',{'email':'hidden@test.org','name':'hidden','role':'member','team':'Research','password':'test-long-password'},201)
+  self.req(a,'/api/users','POST',{'username':'hidden','name':'hidden','designation':'Reviewer','department':'Strategy','role':'member','team':'Research','password':'test-long-password'},201)
   uid=next(u['id'] for u in self.req(a,'/api/users') if u['name']=='hidden')
   p=self.req(a,'/api/projects/'+pid+'/members','PUT',{'members':{**p.get('members',{}),uid:'contributor'}})
   p['fields']=[{'id':'internal','label':'Internal score','type':'text','visibility':'admins','editable':'everyone','required':False,'options':[]}]
   p['properties'][0]['custom']={'internal':'keep-me'};self.req(a,'/api/projects/'+pid,'PUT',p)
-  c=self.client();self.req(c,'/api/login','POST',{'email':'hidden@test.org','password':'test-long-password'})
+  c=self.client();self.req(c,'/api/login','POST',{'username':'hidden'})
   cp=self.req(c,'/api/bootstrap')['projects'][0];self.assertNotIn('internal',cp['properties'][0]['custom'])
   cp['properties'][1]['notes']='Unrelated contributor edit';self.req(c,'/api/projects/'+pid,'PUT',cp)
   self.assertEqual(self.req(a,'/api/bootstrap')['projects'][0]['properties'][0]['custom']['internal'],'keep-me')
@@ -107,4 +107,23 @@ class ServerTest(unittest.TestCase):
   offered={g['properties']['name'] for g in atlas if int(g['id'])<60}
   accepted={f['properties']['name'] for f in json.loads((ROOT/'public/data/USA.json').read_text())['features']}
   self.assertEqual(offered,accepted)
+ def test_09_igt_profiles_admin_crud_and_personal_workspace(self):
+  a=self.admin;payload={'username':'profile.user','name':'Profile User','designation':'Analyst','department':'Operations','role':'member','team':'Research','password':'profile-long-password'}
+  self.req(a,'/api/users','POST',{**payload,'username':'outside@example.com'},400)
+  self.req(a,'/api/users','POST',payload,201);self.req(a,'/api/users','POST',{**payload,'username':'PROFILE.USER'},400)
+  user=next(x for x in self.req(a,'/api/users') if x['email']=='profile.user@igt.com')
+  self.assertEqual((user['designation'],user['department'],user['active']),('Analyst','Operations',True))
+  personal=[p for p in self.req(a,'/api/bootstrap')['projects'] if p.get('owner')==user['id']]
+  self.assertEqual(len(personal),1);self.assertTrue(personal[0]['personal'])
+  updated=self.req(a,'/api/users/'+user['id'],'PUT',{**payload,'designation':'Senior Analyst','active':False})
+  self.assertFalse(updated['active']);self.assertEqual(updated['designation'],'Senior Analyst')
+  self.req(self.client(),'/api/login','POST',{'username':'profile.user'},401)
+  result=self.req(a,'/api/users/'+user['id'],'DELETE');self.assertEqual(result['deletedProjects'],1)
+  self.assertFalse(any(x['id']==user['id'] for x in self.req(a,'/api/users')))
+ def test_10_email_only_self_enrollment_and_admin_separation(self):
+  self.req(self.client(),'/api/login','POST',{'username':'admin'},401)
+  first=self.client();self.req(first,'/api/login','POST',{'username':'new.user'});bootstrap=self.req(first,'/api/bootstrap')
+  self.assertEqual(bootstrap['user']['email'],'new.user@igt.com');self.assertEqual(bootstrap['user']['role'],'member')
+  self.assertEqual(len(bootstrap['projects']),1);self.assertTrue(bootstrap['projects'][0]['personal'])
+  second=self.client();self.req(second,'/api/login','POST',{'email':'NEW.USER@igt.com'});self.assertEqual(self.req(second,'/api/bootstrap')['user']['id'],bootstrap['user']['id'])
 if __name__=='__main__':unittest.main(verbosity=2)
