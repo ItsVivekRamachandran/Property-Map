@@ -3,6 +3,8 @@ import json
 from seed import seed_projects,DEFAULT_CONFIG
 ROOT=Path(__file__).parent;P=ROOT/'public'
 def js(s):return s.replace('</script','<\\/script')
+# Browser-safe public alias; keep the ISO file as the canonical validation source.
+(P/'data/guatemala-regions.json').write_text((P/'data/GTM.json').read_text())
 embedded={str(f.relative_to(P)):json.loads(f.read_text()) for f in (P/'data').glob('*.json') if f.name!='world-raw.json'}
 seed={'projects':seed_projects(),'config':DEFAULT_CONFIG}
 for p in seed['projects']:p['access']='admin'

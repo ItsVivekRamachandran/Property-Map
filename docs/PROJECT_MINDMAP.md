@@ -51,7 +51,7 @@ mindmap
         Render functions return HTML strings
         Delegated click change submit handlers
         D3 and TopoJSON map drawing
-        World view aggregates by solid country silhouettes and drills into country detail
+        World aggregates by solid countries while continents show state and province counts and shading
         Dot style draws one dot per property per region
         Drawers for edit settings sharing and export
         Team and access screen for shared-mode administrators only
@@ -140,8 +140,13 @@ mindmap
         Generated from bundled country region files
       public data countries.json
         Country index
+      public data continents.json
+        Six continent membership lists and map camera frames
+        Natural Earth continent assignments with documented island assignments
       public data three-letter-code JSON
         Natural Earth admin level one GeoJSON
+      public data guatemala-regions.json
+        Browser-safe alias generated from GTM.json by build_preview.py to avoid content-blocker filename collisions
       public data us-counties.json
         US states and counties TopoJSON
       prepare_data.py
@@ -171,6 +176,12 @@ mindmap
         Hidden-value preservation and reproducible seed
       tests e2e.cjs
         Main browser CRUD settings map export mobile flow
+      tests continents.cjs
+        Offline continent selection state counts custom empty-region colors exports labels and drill-down
+      tests continent_loading.cjs
+        Six continent maps over HTTP bounded downloads transient retries failed-cache recovery and navigation races
+      tests storage_regressions.cjs
+        Failed browser writes roll back memory and shared settings refresh without project edits
       tests export_complete.cjs
         Single image clipboard copy combined layers long lists and PDF completeness
       tests offline_export.cjs
@@ -223,19 +234,23 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Pushing to `main` republishes the standalone preview on GitHub Pages.
 - UI values come from the tokens in `public/styles.css`: 4px spacing grid, 12px minimum text, WCAG AA contrast, Material Symbols icons.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
-- World is a read-only map scope, never a project or property country. It aggregates every project property by country, hides internal state/province strokes so each country is one solid silhouette, and country selection drills into the existing state/province map.
+- World and the six continent views are read-only map scopes, never project or property countries. World aggregates by country and hides internal state/province strokes. Continents load member countries' admin-1 geometry, aggregate by `country:state` keys, and show state/province boundaries, shading and count badges. Selecting a continent region opens its country map with that state/province selected. Continent memberships and camera frames live in `public/data/continents.json`; transcontinental countries belong to one group, and distant overseas geometry may lie outside the camera frame. Antarctica is not in the bundled geography; ATF, HMD and SGS remain available in World only.
+- Map-data downloads use at most four concurrent requests and retry transient failures up to three attempts. Failed country promises are removed from the continent cache so reselecting a map can recover. Errors identify the failing data file; late map responses must not overwrite newer navigation.
+- Guatemala retains country code GTM in stored records and validators, while browser map requests use `data/guatemala-regions.json`. `build_preview.py` regenerates this alias from canonical `GTM.json`; content blockers can mistake the ISO filename for Google Tag Manager.
 - CSV property imports append to the current project, use the same ordered columns as Download CSV, and validate every row before the full project is committed; an invalid row or duplicate code rejects the entire upload.
+- Palettes contain the five status colors plus `No properties`, which controls empty/unclassified map fills and legend swatches in live maps and PNG/PDF exports. Legacy five-key palettes default this sixth key to `#eeeef1`; supplied values require six-digit hex colors. Project and account-default palette saves retain the setting.
 - Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
 - Every project has 1–20 uniquely named map legends. Property and regional legend references must resolve to a project legend; regional keys must name a bundled country and state/province.
 - Project, property, and user teams must reference configured teams; a team cannot be removed while any project, property, or user still uses it.
 - Project `version` is the optimistic-lock token. Preserve 409 conflict behavior when changing saves.
-- Shared clients check for changed project versions every 15 seconds while visible and no form drawer is open, then refresh from the local server without bypassing conflict protection.
+- Shared clients check for changed project versions, account configuration, and user profiles every 15 seconds while visible and no form drawer is open, then refresh from the local server without bypassing conflict protection.
+- Failed standalone localStorage writes restore the prior in-memory state; failed export-metadata saves must not delete the stored file. Server export-deletion conflicts roll back both file and metadata changes.
 - The server must filter invisible custom values before responding and preserve fields a role cannot edit or cannot see.
 - A newly required custom field binds only new or changed properties, in both the server and the standalone adapter.
 - The US state list offers only the 50 states and DC (FIPS below 60), matching what the validators accept.
 - Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
 - Exports must not silently omit records or truncate values. The PNG export is always one image: the map and list resize to share a 16:9 slide (3840 × 2160), long names wrap, and only a list that cannot fit at 12px makes the image taller.
-- An export covers only the country shown on the map; project properties in other countries are left out of both the image and the PDF.
+- Exports and CSV downloads respect the selected country, continent, or World scope. Continent counts and directories include all records assigned to its member countries, including any overseas locations outside the camera frame.
 - The PNG export can combine map layers (count shading, dots, legends, locations) and independently show or hide combined country/count labels such as USA 207 without changing map fills. Its mutually exclusive layout choice shows either the PDF-style country overview or the grouped property list beside the map. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
 - Dots in the dot map style show counts per region, never locations; the map, side list and slide share one colour per region.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
@@ -289,6 +304,9 @@ python3 build_preview.py
 # Browser suites use local Playwright dependencies, or CODEX_PRIMARY_RUNTIME_NODE_MODULES when supplied.
 # Chromium: CHROMIUM_PATH if set, otherwise Playwright's own download (npx playwright install chromium).
 node tests/e2e.cjs
+node tests/continents.cjs
+node tests/continent_loading.cjs
+node tests/storage_regressions.cjs
 node tests/shared_access.cjs
 node tests/accessibility_extreme.cjs
 node tests/export_complete.cjs

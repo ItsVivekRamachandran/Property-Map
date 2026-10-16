@@ -131,4 +131,53 @@ class ServerTest(unittest.TestCase):
   self.assertEqual(bootstrap['user']['email'],'new.user@igt.com');self.assertEqual(bootstrap['user']['role'],'member')
   self.assertEqual(len(bootstrap['projects']),1);self.assertTrue(bootstrap['projects'][0]['personal'])
   second=self.client();self.req(second,'/api/login','POST',{'email':'NEW.USER@igt.com'});self.assertEqual(self.req(second,'/api/bootstrap')['user']['id'],bootstrap['user']['id'])
+ def test_11_no_properties_palette_and_legacy_defaults(self):
+  a=self.admin;p=copy.deepcopy(self.req(a,'/api/bootstrap')['projects'][0]);url='/api/projects/'+p['id']
+  p['palette'].pop('No properties',None)
+  p=self.req(a,url,'PUT',p);self.assertEqual(p['palette']['No properties'],'#eeeef1')
+  p['palette']['No properties']='#ffe0b2';p=self.req(a,url,'PUT',p)
+  saved=next(x for x in self.req(a,'/api/bootstrap')['projects'] if x['id']==p['id'])
+  self.assertEqual(saved['palette']['No properties'],'#ffe0b2')
+  for invalid in ['orange',None,123]:
+   q=copy.deepcopy(p);q['palette']['No properties']=invalid;self.req(a,url,'PUT',q,400)
+  cfg=copy.deepcopy(self.req(a,'/api/bootstrap')['config']);cfg['palette'].pop('No properties',None)
+  self.req(a,'/api/config','PUT',cfg)
+  self.assertEqual(self.req(a,'/api/bootstrap')['config']['palette']['No properties'],'#eeeef1')
+  cfg['palette']['No properties']='#123456';self.req(a,'/api/config','PUT',cfg)
+  self.assertEqual(self.req(a,'/api/bootstrap')['config']['palette']['No properties'],'#123456')
+ def test_12_malformed_request_shapes(self):
+  for body in [[],None,'invalid',7]:
+   self.req(self.admin,'/api/projects','POST',body if body is not None else {'properties':None},400)
+  p=self.req(self.admin,'/api/bootstrap')['projects'][0]
+  for members in [[],None,'invalid']:
+   self.req(self.admin,'/api/projects/'+p['id']+'/members','PUT',{'members':members},400)
+  for project in [None,[],{'properties':[None]}]:
+   self.req(self.admin,'/api/import','POST',{'projects':[project]},400)
+  self.req(self.client(),'/api/admin/login','POST',{'username':'admin','password':12},400)
+ def test_13_export_delete_conflict_rolls_back_blob(self):
+  import importlib.util,sqlite3
+  from unittest.mock import patch,Mock
+  with patch.dict(os.environ,{'PROPERTY_MAP_DATA':self.tmp.name}):
+   spec=importlib.util.spec_from_file_location('export_conflict_server',ROOT/'server.py');module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+  connection=sqlite3.connect(':memory:');connection.row_factory=sqlite3.Row
+  connection.executescript('CREATE TABLE config(id,body); CREATE TABLE projects(id,body); CREATE TABLE exports(id,project_id,name,mime,data);')
+  project={'id':'p','owner':'admin','members':{},'exports':[{'id':'e'}],'version':1}
+  connection.execute('INSERT INTO config VALUES(1,?)',(json.dumps({}),))
+  connection.execute('INSERT INTO projects VALUES(?,?)',('p',json.dumps(project)))
+  connection.execute('INSERT INTO exports VALUES(?,?,?,?,?)',('e','p','map.png','image/png',b'png'));connection.commit()
+  class ConflictConnection:
+   def __enter__(self):return self
+   def __exit__(self,*args):return connection.__exit__(*args)
+   def execute(self,sql,args=()):
+    if sql.startswith('UPDATE projects'):return Mock(rowcount=0)
+    return connection.execute(sql,args)
+   def rollback(self):connection.rollback()
+  handler=object.__new__(module.Handler);handler.path='/api/exports/e';handler.headers={'X-Property-Map':'1'}
+  handler.user=lambda c:{'id':'admin','role':'admin'};handler.send=Mock()
+  try:
+   with patch.object(module,'db',return_value=ConflictConnection()):handler.route('DELETE')
+   self.assertEqual(handler.send.call_args.args[0],409)
+   self.assertEqual(connection.execute('SELECT data FROM exports WHERE id=?',('e',)).fetchone()[0],b'png')
+   self.assertEqual(json.loads(connection.execute('SELECT body FROM projects').fetchone()[0]),project)
+  finally:connection.close()
 if __name__=='__main__':unittest.main(verbosity=2)

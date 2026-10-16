@@ -1,0 +1,12 @@
+{
+  "source": "https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_10m_admin_0_countries.geojson",
+  "notes": "Natural Earth CONTINENT grouping, with Indian Ocean islands assigned to Asia or Africa and Clipperton to North America. Transcontinental countries are assigned once (Russia to Europe; Turkey and Kazakhstan to Asia). ATF, HMD and SGS remain available in World only. Continent cameras frame the main region; distant overseas territories may lie outside the frame.",
+  "views": [
+    {"code":"CONTINENT_AFRICA","name":"Africa","center":20,"bounds":[-26,-39,64,39],"countries":"DZA AGO BEN BWA BFA BDI CMR CPV CAF TCD COM COD DJI EGY GNQ ERI ETH GAB GMB GHA GIN GNB CIV KEN LSO LBR LBY MDG MWI MLI MRT MAR MOZ NAM NER NGA COG RWA SDS STP SEN SLE SOM SOL ZAF SDN SWZ TGO TUN UGA TZA SAH ZMB ZWE MUS SHN SYC"},
+    {"code":"CONTINENT_ASIA","name":"Asia","center":100,"bounds":[25,-13,180,79],"countries":"AFG WSB ARM AZE BHR BGD KAB BTN BRN KHM CHN CYP ESB TLS PSX GEO HKG IND IOA IDN IRN IRQ ISR JPN JOR KAZ KWT KGZ LAO LBN MAC MYS MNG MMR NPL PRK CYN OMN PAK PHL QAT SAU KAS SGP KOR PGA LKA SYR TWN TJK THA TUR TKM ARE UZB VNM YEM MDV IOT"},
+    {"code":"CONTINENT_EUROPE","name":"Europe","center":20,"bounds":[-26,33,65,82],"countries":"ALD ALB AND AUT BLR BEL BIH BGR HRV CZE DNK EST FRO FIN FRA DEU GIB GRC GGY HUN ISL IRL IMN ITA JEY KOS LVA LIE LTU LUX MKD MLT MDA MCO MNE NLD NOR POL PRT SRB ROU RUS SMR SVK SVN ESP SWE CHE UKR GBR VAT"},
+    {"code":"CONTINENT_NORTH_AMERICA","name":"North America","center":-100,"bounds":[-173,5,-12,85],"countries":"AIA ATG ABW BRB BLZ BMU VGB CAN CYM CRI CUB CUW DMA DOM SLV GRL GRD GTM HTI HND JAM MEX MSR NIC PAN PRI BLM KNA LCA MAF SPM VCT SXM BHS TTO TCA USG UMI VIR USA CLP"},
+    {"code":"CONTINENT_SOUTH_AMERICA","name":"South America","center":-60,"bounds":[-94,-58,-28,15],"countries":"ARG BOL BRA CHL COL ECU FLK GUY PRY PER SUR URY VEN"},
+    {"code":"CONTINENT_OCEANIA","name":"Oceania","center":160,"bounds":[110,-55,235,30],"countries":"ASM ATC AUS COK CSI FSM FJI PYF GUM KIR MHL NRU NCL NZL NIU NFK MNP PLW PNG PCN WSM SLB TON TUV VUT WLF"}
+  ]
+}

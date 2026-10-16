@@ -1,5 +1,5 @@
 import uuid
-PALETTE={'Live':'#7052d6','Opportunity':'#239b8a','Competition':'#d99a38','No credit':'#cbd2dc','Prohibited':'#ca7488'}
+PALETTE={'Live':'#7052d6','Opportunity':'#239b8a','Competition':'#d99a38','No credit':'#cbd2dc','Prohibited':'#ca7488','No properties':'#eeeef1'}
 LEGENDS=[
  {'id':'live','label':'Live','color':PALETTE['Live']},
  {'id':'opportunity','label':'Opportunity','color':PALETTE['Opportunity']},

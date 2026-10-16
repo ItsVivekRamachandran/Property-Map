@@ -115,9 +115,10 @@ def validate_project(p,config,old=None,u=None):
  if not re.fullmatch('[A-Z]{3}',str(p.get('country'))) or not (PUBLIC/'data'/(str(p.get('country'))+'.json')).is_file():raise ValueError('Choose a supported country.')
  validate_fields(p.get('fields',[]))
  palette=p.get('palette')
+ if isinstance(palette,dict):palette.setdefault('No properties',PALETTE['No properties'])
  if not isinstance(palette,dict) or set(palette)!=set(PALETTE):raise ValueError('A complete project palette is required.')
  for v in palette.values():
-  if not re.fullmatch(r'#[0-9a-fA-F]{6}',v):raise ValueError('Invalid color.')
+  if not isinstance(v,str) or not re.fullmatch(r'#[0-9a-fA-F]{6}',v):raise ValueError('Invalid color.')
  legends,legend_ids=validate_legends(p)
  label_ids={x['label'].casefold():x['id'] for x in legends}
  rules=p.get('regionRules',{})
@@ -196,7 +197,9 @@ class Handler(BaseHTTPRequestHandler):
  def body(self):
   n=int(self.headers.get('Content-Length',0))
   if n<0 or n>32*1024*1024:raise ValueError('Request too large.')
-  return json.loads(self.rfile.read(n) or '{}')
+  body=json.loads(self.rfile.read(n) or '{}')
+  if not isinstance(body,dict):raise ValueError('Request body must be a JSON object.')
+  return body
  def user(self,c):
   if LOCAL:return user_dict(c.execute("SELECT * FROM users WHERE id='local'").fetchone())
   cookie=SimpleCookie();cookie.load(self.headers.get('Cookie',''));t=cookie.get('pm_session')
@@ -227,6 +230,7 @@ class Handler(BaseHTTPRequestHandler):
   with db() as c:
    if path=='/api/admin/login' and method=='POST':
     b=self.body();ip=self.client_address[0];attempts=getattr(self.server,'attempts',{});c.execute('DELETE FROM sessions WHERE expires<=?',(time.time(),))
+    if not isinstance(b.get('password',''),str):raise ValueError('Password must be text.')
     recent=[t for t in attempts.get(ip,[]) if t>time.time()-300]
     if len(recent)>=12:return self.send(429,{'error':'Too many attempts. Try again in five minutes.'})
     try:email=account_email(b.get('username',b.get('email','')))
@@ -265,6 +269,7 @@ class Handler(BaseHTTPRequestHandler):
    if path=='/api/config' and method=='PUT':
     if u['role']!='admin':return self.send(403,{'error':'Only administrators can change account settings.'})
     b=self.body();validate_fields(b.get('fields',[]))
+    if isinstance(b.get('palette'),dict):b['palette'].setdefault('No properties',PALETTE['No properties'])
     if not isinstance(b.get('palette'),dict) or set(b['palette'])!=set(PALETTE) or any(not re.fullmatch(r'#[0-9a-fA-F]{6}',str(v)) for v in b['palette'].values()):raise ValueError('Invalid palette color.')
     if not isinstance(b.get('teams'),list) or not b['teams'] or any(not isinstance(t,str) or not t.strip() or len(t)>100 for t in b['teams']):raise ValueError('Enter valid team names.')
     if len(set(b['teams']))!=len(b['teams']):raise ValueError('Team names must be unique.')
@@ -323,6 +328,7 @@ class Handler(BaseHTTPRequestHandler):
     if not isinstance(items,list) or not items or len(items)>50:raise ValueError('Import between 1 and 50 projects at a time.')
     prepared=[]
     for raw in items:
+     if not isinstance(raw,dict) or not isinstance(raw.get('properties',[]),list) or any(not isinstance(r,dict) for r in raw.get('properties',[])):raise ValueError('Import requires project objects with property objects.')
      p=json.loads(json.dumps(raw));p.update(id=uid(),owner=u['id'],members={},version=1,exports=[])
      for r in p.get('properties',[]):r['id']=uid()
      validate_project(p,config,u=u);prepared.append(p)
@@ -349,6 +355,7 @@ class Handler(BaseHTTPRequestHandler):
     if sub=='members' and method=='PUT':
      if role!='admin':return self.send(403,{'error':'Only project owners and admins can manage access.'})
      members=self.body()['members']
+     if not isinstance(members,dict):raise ValueError('Project members must be an object.')
      for k,v in members.items():
       if v not in ['viewer','contributor'] or not c.execute('SELECT 1 FROM users WHERE id=?',(k,)).fetchone():raise ValueError('Invalid project member.')
      p['members']=members;p['version']+=1
@@ -376,7 +383,8 @@ class Handler(BaseHTTPRequestHandler):
     if method=='DELETE':
      if role!='admin':return self.send(403,{'error':'Only project owners and admins can delete exports.'})
      c.execute('DELETE FROM exports WHERE id=?',(m[1],));p['exports']=[e for e in p.get('exports',[]) if e['id']!=m[1]];p['version']+=1
-     if c.execute('UPDATE projects SET body=? WHERE id=? AND body=?',(json.dumps(p),r['project_id'],prow[0])).rowcount!=1:return self.send(409,{'error':'Project changed while deleting the export. Please retry.'})
+     if c.execute('UPDATE projects SET body=? WHERE id=? AND body=?',(json.dumps(p),r['project_id'],prow[0])).rowcount!=1:
+      c.rollback();return self.send(409,{'error':'Project changed while deleting the export. Please retry.'})
      c.execute('INSERT INTO audit(time,user_id,action,project_id) VALUES(?,?,?,?)',(time.time(),u['id'],'export.delete',r['project_id']));return self.send(obj=visible(p,u,config))
     return self.send(data=r['data'],mime=r['mime'],headers={'Content-Disposition':"attachment; filename*=UTF-8''"+urllib.parse.quote(r['name'])})
    return self.send(404,{'error':'Not found.'})

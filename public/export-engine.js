@@ -15,7 +15,7 @@ const ExportEngine = (() => {
     const entries = [];
     if (layers.count || layers.dots) entries.push(['Low count', '#ded2f2'], ['High count', project.palette.Live]);
     if (layers.status) entries.push(...(project.legends || []).map(item => [item.label, item.color]), ['Competition outline', project.palette.Competition]);
-    entries.push([layers.status ? 'Unclassified' : 'No properties', '#eeeef1']);
+    entries.push([layers.status ? 'Unclassified' : 'No properties', project.palette['No properties'] || '#eeeef1']);
     return entries;
   }
 
@@ -203,7 +203,7 @@ const ExportEngine = (() => {
     c.fillText(`${rows.length} properties in directory  ·  Map focus: ${countryName}${mapFocus ? ' / ' + mapFocus : ''}`, 70, 174);
     c.drawImage(img, 58, 252, 1220, 624);
     const byRegion = {};
-    rows.forEach(r => {const key = context.world ? context.countryNames[r.country] || r.country : regionLabel(r) || countryName; byRegion[key] = (byRegion[key] || 0) + 1});
+    rows.forEach(r => {const key = context.continent ? `${regionLabel(r)} (${r.country})` : context.world ? context.countryNames[r.country] || r.country : regionLabel(r) || countryName; byRegion[key] = (byRegion[key] || 0) + 1});
     metrics(c, 1330, rows, project, byRegion);
     if (includeLegend) {
       const keys = mapLegendEntries(project, layers);
@@ -320,7 +320,7 @@ const ExportEngine = (() => {
       for (const item of column) {
         const lead = item.type === 'group' ? plan.groupH - plan.rowH : 0;
         if (item.type === 'group') {
-          c.fillStyle = context.dotColors?.[context.world ? item.group.country : item.group.state] || accent;
+          c.fillStyle = context.dotColors?.[context.continent ? item.group.country + ':' + item.group.state : context.world ? item.group.country : item.group.state] || accent;
           c.beginPath(); c.arc(x + size * .4, y + plan.groupH - size * .75, size * .36, 0, Math.PI * 2); c.fill();
           c.fillStyle = theme.ink; c.font = `600 ${size}px Arial`;
         } else {c.fillStyle = theme.sub; c.font = `${size}px Arial`}
