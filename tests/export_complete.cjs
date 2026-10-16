@@ -26,6 +26,9 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     // The 44-property sample fits one slide and can be copied straight to the clipboard.
     await page.locator('[data-action=export]').click();
     await page.waitForSelector('#exportPreview canvas');
+    assert.equal(await page.locator('#exportForm input[name=pngSide]').count(), 2, 'PNG layout uses one radio group');
+    assert.equal(await page.isChecked('#exportForm input[name=pngSide][value=overview]'), true, 'country overview is the default');
+    await page.check('#exportForm input[name=pngSide][value=list]');
     assert((await page.locator('#exportEstimate').textContent()).includes('fits a 16:9 slide'));
     const single = await page.evaluate(() => {
       const plan = ExportEngine.slidePlan(exportContext(document.querySelector('#exportForm')));
@@ -39,9 +42,12 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
       return {dots: svg.querySelectorAll('.count-dot').length, pills: svg.querySelectorAll('.map-label rect').length};
     });
     assert.deepEqual(combined, {dots: 44, pills: 11}, 'dots and count numbers are drawn together');
-    await page.uncheck('#exportForm input[name=list]');
-    assert.equal(await page.evaluate(() => ExportEngine.slidePlan(exportContext(document.querySelector('#exportForm'))).columns.length), 0, 'the list can be switched off');
-    await page.check('#exportForm input[name=list]');
+    await page.uncheck('#exportForm input[name=countNumbers]');
+    assert.equal(await page.evaluate(() => new DOMParser().parseFromString(exportMapMarkup(exportContext(document.querySelector('#exportForm')).layers), 'image/svg+xml').querySelectorAll('.property-count-number').length), 0, 'property count numbers can be removed independently');
+    await page.check('#exportForm input[name=countNumbers]');
+    await page.check('#exportForm input[name=pngSide][value=overview]');
+    assert.equal(await page.evaluate(() => ExportEngine.slidePlan(exportContext(document.querySelector('#exportForm'))).overview), true, 'country overview replaces the list');
+    await page.check('#exportForm input[name=pngSide][value=list]');
     assert(single.size >= 12, 'slide text never drops below 12px on a 1920-wide slide');
     await page.locator('#exportCopy').click();
     await page.waitForFunction(() => document.querySelector('#toast').textContent.includes('copied'));
@@ -81,6 +87,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     await page.waitForSelector('#mapSvg .region');
     await page.selectOption('#stateFilter', 'Nevada');
     await page.locator('[data-action=export]').click();
+    await page.check('#exportForm input[name=pngSide][value=list]');
     assert.equal(await page.locator('#exportCount').textContent(), '110 of 110 United States of America properties included');
     assert(!(await page.locator('#exportRecords').textContent()).includes('Outside this map'), 'properties from other countries are not exported with this map');
     assert.equal(await page.locator('#exportRecords .export-record').count(), 110);

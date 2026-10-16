@@ -107,20 +107,22 @@ const ExportEngine = (() => {
   // largest text, then the fewest (widest) columns. Only when 12px text cannot fit a 16:9 slide does
   // the image grow taller.
   function slidePlan(context) {
-    if (!context.showList || !context.rows.length) return {columns: [], size: 14, columnWidth: 0, rowH: 0, groupH: 0, listX: null, height: SLIDE_H};
+    if (context.showOverview) return {overview: true, columns: [], size: 14, columnWidth: 0, rowH: 0, groupH: 0, listX: null, listTop: LIST_TOP, height: SLIDE_H};
+    if (!context.showList || !context.rows.length) return {columns: [], size: 14, columnWidth: 0, rowH: 0, groupH: 0, listX: null, listTop: LIST_TOP, height: SLIDE_H};
+    const listTop = LIST_TOP;
     const groups = slideGroups(context.rows, context.countryNames), ctx = document.createElement('canvas').getContext('2d');
     const widthFor = (listX, count) => Math.floor((SLIDE_W - SLIDE_MARGIN - listX - (count - 1) * COLUMN_GAP) / count);
     const attempt = (size, listX, count, height) => {
       const columnWidth = widthFor(listX, count);
       if (columnWidth < size * 13) return null;
       const flow = slideFlow(ctx, groups, size, height, columnWidth);
-      return flow.fitsWidth && flow.columns.length <= count ? {...flow, size, columnWidth, listX, height: LIST_TOP + height + 40} : null;
+      return flow.fitsWidth && flow.columns.length <= count ? {...flow, size, columnWidth, listX, listTop, height: Math.max(SLIDE_H, listTop + height + 40)} : null;
     };
     for (const sizes of [[18, 16, 15, 14], [13, 12]]) for (const listX of LIST_STARTS) for (const size of sizes) for (let count = 1; count <= 5; count++) {
-      const plan = attempt(size, listX, count, LIST_BOTTOM - LIST_TOP);
+      const plan = attempt(size, listX, count, LIST_BOTTOM - listTop);
       if (plan) return plan;
     }
-    for (let height = LIST_BOTTOM - LIST_TOP + 40; height < 7000; height += 40) for (let count = 4; count >= 1; count--) {
+    for (let height = Math.max(40, LIST_BOTTOM - listTop + 40); height < 7000; height += 40) for (let count = 4; count >= 1; count--) {
       const plan = attempt(12, LIST_STARTS.at(-1), count, height);
       if (plan) return plan;
     }
@@ -280,6 +282,7 @@ const ExportEngine = (() => {
   }
 
   function drawSlide(c, context, plan, img) {
+    if (plan.overview) {drawMapPage(c, context, img, SLIDE_W); return}
     const theme = THEMES[context.theme] || THEMES.light, {project, rows, layers} = context;
     c.fillStyle = theme.bg; c.fillRect(0, 0, SLIDE_W, plan.height);
     c.fillStyle = theme.ink; c.font = '600 44px Arial'; c.fillText(project.name, SLIDE_MARGIN, 84);
@@ -313,7 +316,7 @@ const ExportEngine = (() => {
     let x = plan.listX;
     const size = plan.size, accent = project.palette.Live;
     for (const column of plan.columns) {
-      let y = LIST_TOP;
+      let y = plan.listTop;
       for (const item of column) {
         const lead = item.type === 'group' ? plan.groupH - plan.rowH : 0;
         if (item.type === 'group') {

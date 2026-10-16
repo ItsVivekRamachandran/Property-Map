@@ -20,6 +20,18 @@ python server.py
 
 Open http://127.0.0.1:8000. The default local edition stores projects in `data/property-map.sqlite3`. Its local administrator is a preview identity. The local edition is deliberately restricted to loopback binding.
 
+### Windows one-click shared launcher
+
+Double-click `Run-Property-Map.bat`. On its first run, the launcher asks for an administrator password of at least 12 characters, creates `shared-data/property-map.sqlite3`, starts the shared server, and opens http://127.0.0.1:8000. Open http://127.0.0.1:8000/admin for administrator access. Keep the command window open while using the application and press **Ctrl+C** there to stop it.
+
+The launcher stores application data locally in `shared-data/`; it does not save the cleartext administrator password in the BAT file. The initial password is requested only when the database does not yet exist.
+
+### macOS one-click shared launcher
+
+Double-click `Run-Property-Map.command` in Finder. On its first run, the launcher securely requests an administrator password of at least 12 characters. It then creates or reuses `shared-data/property-map.sqlite3`, starts the shared server, and opens http://127.0.0.1:8000 in the default browser. Open http://127.0.0.1:8000/admin for administrator access. Keep the Terminal window open and press **Control+C** there to stop the server.
+
+If macOS reports that the launcher cannot be executed after copying or downloading it, open Terminal in the project folder once and run `chmod +x Run-Property-Map.command`.
+
 ## Shared team edition
 
 Use a persistent local data directory, an `@igt.com` administrator email and a strong initial password. Pass the password through a secure environment-variable prompt; do not commit it. SQLite remains the only database and the database file stays on the computer running the application.
@@ -50,7 +62,7 @@ Administrators create, edit, deactivate, or delete accounts in **Team & access**
 
 ## Working features
 
-- World and country map selection using the bundled Natural Earth geography. The World view aggregates properties by country across all four map styles and drills into the existing state/province perspective when a country is selected.
+- World and country map selection using the bundled Natural Earth geography. The World view aggregates properties by country across all four map styles, renders each country as one solid silhouette without internal state/province strokes, and drills into the existing state/province perspective when a country is selected.
 - State selection through the map or dropdown; one City field, shown as a linked dropdown for the bundled US location list and as manual entry elsewhere.
 - Project creation, persistent property creation/editing/deletion, duplicate-code checks and paired latitude/longitude validation.
 - Regional classification and competition outlines.
@@ -59,7 +71,7 @@ Administrators create, edit, deactivate, or delete accounts in **Team & access**
 - Account-default → team → project field precedence. Locked account fields cannot be overridden by a lower layer. Editing a property enforces newly required fields; unchanged historical rows do not prevent unrelated updates.
 - Team labels can be managed without exposing user identity in the application shell. In shared mode, authentication and project permissions remain server-enforced; team labels do not automatically grant access.
 - Four map styles: property count, property dots (one dot per property inside each region, coloured per region; dots show counts, not locations), map legends, and coordinate locations.
-- Export is built for pasting into presentations. The PNG export is always **one image**, 16:9 at 3840 × 2160, with the map on the left and every property grouped by region on the right; **Copy image** puts it on the clipboard. Checkboxes combine what the map shows (property count, property dots, map legends, locations) and switch the property list on or off. The map and list resize to share the slide and long names wrap; only a list that cannot fit at 12px makes the image taller. An export covers the country shown on the map, so properties the project holds in other countries are left out. Other options: all or filtered properties, light or dark background, legend, date. A full PDF report is the alternative: a map page whose overview panel counts every map legend and every region (one column, or two when there are many), then a table with every field, optionally in a section per state or province. Every export is also saved under Recent exports for the current project.
+- Export is built for pasting into presentations. The PNG export is always **one image**, normally 16:9 at 3840 × 2160, and **Copy image** puts it on the clipboard. A radio-button choice selects either **Country overview**, which uses the same map and “Portfolio at a glance” composition as the PDF cover page, or **Property list beside the map**, which groups every included property by region. The map and list resize to share the slide and long names wrap; only a list that cannot fit at 12px makes the image taller. Checkboxes combine what the map shows (count color shading, property dots, map legends, locations), while **Country count labels (USA 207)** independently adds or removes the combined country/count badges without changing country background colors. An export covers the country shown on the map, so properties the project holds in other countries are left out. Other options: all or filtered properties, light or dark background, legend, date. A full PDF report is the alternative: a map page whose overview panel counts every map legend and every region (one column, or two when there are many), then a table with every field, optionally in a section per state or province. Every export is also saved under Recent exports for the current project.
 - CSV import/export and portable JSON backup/import. The Import button beside Add property appends a Download CSV-format file to the current project after validating every row; duplicate property codes or invalid rows reject the entire upload. JSON backups contain editable data, not PNG/PDF bytes. Imported projects receive new IDs and do not replace existing projects.
 - Responsive layouts, keyboard-accessible map regions, labeled controls and focus-trapped dialogs.
 
@@ -68,6 +80,8 @@ Administrators create, edit, deactivate, or delete accounts in **Team & access**
 Sample property names are transcribed from the supplied reference; codes other than V227, V174 and V168 are illustrative. Sample property coordinates are empty intentionally. The listed source rows add up to **44** properties although the reference header states 45; the application computes totals from records.
 
 Natural Earth admin-1 data was retrieved on 1 October 2026 and simplified for display. It contains 250 country/territory groups and 4,588 named regions. Administrative boundaries may be generalized, disputed or older than current official boundaries. The US City dropdown is populated from the bundled us-atlas 2017 county-name dataset; it is a selectable location label, not a municipal-boundary dataset. City polygons outside the United States and address geocoding are not included. Coordinate pins use entered values; they are not automatically geocoded or validated against region polygons.
+
+The seeded **CC HeatMap** project is reconstructed from an aggregate image containing 215 properties: 207 in the United States, 6 in Canada and 2 in Uruguay. Each regional count is expanded into placeholder property records because the application stores individual properties. The source did not provide names, statuses, addresses, cities or coordinates, so every generated row records that limitation in Notes and uses Live as the required default classification. The bundled map names Canada's region `Québec`; the country-only Uruguay row is assigned to `Montevideo` as a technical admin-1 placeholder.
 
 The application stores custom-field visibility on the server and filters hidden values before responding. Browser-preview role settings are design configuration, not a security boundary.
 

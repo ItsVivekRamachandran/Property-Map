@@ -101,8 +101,13 @@ class ServerTest(unittest.TestCase):
   cp['properties'][1]['notes']='Unrelated contributor edit';self.req(c,'/api/projects/'+pid,'PUT',cp)
   self.assertEqual(self.req(a,'/api/bootstrap')['projects'][0]['properties'][0]['custom']['internal'],'keep-me')
  def test_08_seed_is_reproducible_and_us_states_match(self):
-  sys.path.insert(0,str(ROOT));from seed import seed_projects
-  self.assertEqual(seed_projects(),seed_projects())
+  sys.path.insert(0,str(ROOT));from seed import seed_projects,CC_HEATMAP_COUNTS
+  projects=seed_projects();self.assertEqual(projects,seed_projects())
+  cc=next(p for p in projects if p['id']=='cc-heatmap');self.assertEqual(len(cc['properties']),215)
+  countries={country:sum(1 for r in cc['properties'] if r['country']==country) for country in ['USA','CAN','URY']}
+  self.assertEqual(countries,{'USA':207,'CAN':6,'URY':2})
+  regions={(country,state):sum(1 for r in cc['properties'] if r['country']==country and r['state']==state) for country,state,abbr,count in CC_HEATMAP_COUNTS}
+  self.assertEqual(regions,{(country,state):count for country,state,abbr,count in CC_HEATMAP_COUNTS})
   atlas=json.loads((ROOT/'public/data/us-counties.json').read_text())['objects']['states']['geometries']
   offered={g['properties']['name'] for g in atlas if int(g['id'])<60}
   accepted={f['properties']['name'] for f in json.loads((ROOT/'public/data/USA.json').read_text())['features']}

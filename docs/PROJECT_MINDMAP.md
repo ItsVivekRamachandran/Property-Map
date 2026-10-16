@@ -51,7 +51,7 @@ mindmap
         Render functions return HTML strings
         Delegated click change submit handlers
         D3 and TopoJSON map drawing
-        World view aggregates by country and drills into country detail
+        World view aggregates by solid country silhouettes and drills into country detail
         Dot style draws one dot per property per region
         Drawers for edit settings sharing and export
         Team and access screen for shared-mode administrators only
@@ -64,7 +64,7 @@ mindmap
         Dialog and drawer styling
       public export-engine.js
         Sorts export rows
-        Always one PNG with map and optional grouped property list
+        Always one PNG with radio-selected country overview or grouped property list
         Map and list share a 16 by 9 slide and long names wrap
         Image grows taller only when 12px text cannot fit
         Map layers can be combined
@@ -159,6 +159,7 @@ mindmap
         Default config and palettes
         US sample with 44 properties
         Empty India planning sample
+        CC HeatMap with 215 count-derived records across USA Canada and Uruguay
       Property-Map.html
         Generated self-contained preview
         Never edit directly
@@ -222,7 +223,7 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Pushing to `main` republishes the standalone preview on GitHub Pages.
 - UI values come from the tokens in `public/styles.css`: 4px spacing grid, 12px minimum text, WCAG AA contrast, Material Symbols icons.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
-- World is a read-only map scope, never a project or property country. It aggregates every project property by country and country selection drills into the existing state/province map.
+- World is a read-only map scope, never a project or property country. It aggregates every project property by country, hides internal state/province strokes so each country is one solid silhouette, and country selection drills into the existing state/province map.
 - CSV property imports append to the current project, use the same ordered columns as Download CSV, and validate every row before the full project is committed; an invalid row or duplicate code rejects the entire upload.
 - Project, property, field, palette, coordinates, and custom values are validated in both the standalone adapter and server. Numeric values must be finite and imports validate completely before any project is committed.
 - Every project has 1–20 uniquely named map legends. Property and regional legend references must resolve to a project legend; regional keys must name a bundled country and state/province.
@@ -235,11 +236,12 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
 - Exports must not silently omit records or truncate values. The PNG export is always one image: the map and list resize to share a 16:9 slide (3840 × 2160), long names wrap, and only a list that cannot fit at 12px makes the image taller.
 - An export covers only the country shown on the map; project properties in other countries are left out of both the image and the PDF.
-- The PNG export can combine map layers (count, dots, legends, locations) and can leave out the property list. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
+- The PNG export can combine map layers (count shading, dots, legends, locations) and independently show or hide combined country/count labels such as USA 207 without changing map fills. Its mutually exclusive layout choice shows either the PDF-style country overview or the grouped property list beside the map. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
 - Dots in the dot map style show counts per region, never locations; the map, side list and slide share one colour per region.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
 - Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.
 - Shared-mode account addresses are normalized to lowercase and must use the fixed `@igt.com` domain. Full name, designation and department are required, and email uniqueness is case-insensitive.
+- The seeded CC HeatMap project expands the supplied aggregate table into 215 placeholder property records: 207 USA, 6 Canada and 2 Uruguay. Québec uses the bundled accented region label; the country-only Uruguay source row uses Montevideo as the required admin-1 placeholder.
 - `/admin` shows the administrator email/password form and uses the password-only administrator endpoint. `/` shows email-only member access; an unknown valid address is provisioned with a private workspace. Email-only access is intentionally limited to trusted local use because it does not prove mailbox ownership.
 - Creating an account also creates one private personal workspace owned by that user. Deleting an account deletes its owned projects and exports, removes its memberships and sessions, and must never remove the current or final active administrator.
 - The property form exposes one City field. It writes the legacy `district` key for backup compatibility, falls back to the old `city` key when reading historical rows, and clears the duplicate key on the next save.
