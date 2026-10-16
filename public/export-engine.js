@@ -281,28 +281,40 @@ const ExportEngine = (() => {
     return new Blob([await doc.save()], {type: 'application/pdf'});
   }
 
+  function slideMapLayout(context, plan) {
+    const {project, layers} = context;
+    const cardW = plan.listX ? plan.listX - SLIDE_MARGIN - 40 : SLIDE_W - 2 * SLIDE_MARGIN, cardH = LIST_BOTTOM - 148;
+    const notes = [];
+    if (layers.dots) notes.push('Each dot is one property; dots show counts, not exact locations.');
+    if (layers.locations) notes.push('Pins show properties with entered coordinates.');
+    const legend = context.includeLegend ? mapLegendEntries(project, layers) : [];
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = '18px Arial';
+    let lines = legend.length ? 1 : 0, lineX = 0;
+    for (const [label] of legend) {const w = c.measureText(label).width + 62; if (lineX && lineX + w > cardW - 48) {lines++; lineX = 0} lineX += w}
+    const legendSpace = context.includeLegend ? 28 + lines * 32 + notes.length * 24 : 24;
+    const mapW = Math.min(cardW - 32, (cardH - 32 - legendSpace) * 900 / 460), mapH = mapW * 460 / 900;
+    return {cardW, cardH, notes, legend, legendSpace, x:SLIDE_MARGIN + (cardW - mapW) / 2, y:148 + 16 + (cardH - 32 - legendSpace - mapH) / 2, width:mapW, height:mapH};
+  }
+
+  function mapViewport(context, plan = slidePlan(context)) {
+    return context.kind === 'pdf' || plan.overview ? {x:58, y:252, width:1220, height:624} : slideMapLayout(context, plan);
+  }
+
   function drawSlide(c, context, plan, img) {
     if (plan.overview) {drawMapPage(c, context, img, SLIDE_W); return}
-    const theme = THEMES[context.theme] || THEMES.light, {project, rows, layers} = context;
+    const theme = THEMES[context.theme] || THEMES.light, {project, rows} = context;
     c.fillStyle = theme.bg; c.fillRect(0, 0, SLIDE_W, plan.height);
     c.fillStyle = theme.ink; c.font = '600 44px Arial'; c.fillText(project.name, SLIDE_MARGIN, 84);
     c.fillStyle = theme.sub; c.font = '20px Arial';
     const facts = [`${rows.length} ${rows.length === 1 ? 'property' : 'properties'}`, context.countryName + (context.mapFocus ? ' / ' + context.mapFocus : '')];
     if (context.includeDate) facts.push(new Date().toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'}));
     c.fillText(facts.join('  ·  '), SLIDE_MARGIN, 122);
-    const cardW = plan.listX ? plan.listX - SLIDE_MARGIN - 40 : SLIDE_W - 2 * SLIDE_MARGIN, cardH = LIST_BOTTOM - 148;
+    const {cardW,cardH,notes,legend,legendSpace,x:mapX,y:mapY,width:mapW,height:mapH}=slideMapLayout(context,plan);
     c.fillStyle = theme.card; c.beginPath(); c.roundRect(SLIDE_MARGIN, 148, cardW, cardH, 16); c.fill();
-    const notes = [];
-    if (layers.dots) notes.push('Each dot is one property; dots show counts, not exact locations.');
-    if (layers.locations) notes.push('Pins show properties with entered coordinates.');
-    const legend = context.includeLegend ? mapLegendEntries(project, layers) : [];
-    c.font = '18px Arial';
-    let lines = legend.length ? 1 : 0, lineX = 0;
-    for (const [label] of legend) {const w = c.measureText(label).width + 62; if (lineX && lineX + w > cardW - 48) {lines++; lineX = 0} lineX += w}
-    const legendSpace = context.includeLegend ? 28 + lines * 32 + notes.length * 24 : 24;
-    const mapW = Math.min(cardW - 32, (cardH - 32 - legendSpace) * 900 / 460), mapH = mapW * 460 / 900;
-    c.drawImage(img, SLIDE_MARGIN + (cardW - mapW) / 2, 148 + 16 + (cardH - 32 - legendSpace - mapH) / 2, mapW, mapH);
+    c.drawImage(img, mapX, mapY, mapW, mapH);
     if (context.includeLegend) {
+      c.font = '18px Arial';
       let x = SLIDE_MARGIN + 28, y = 148 + cardH - legendSpace + 8;
       for (const [label, color] of legend) {
         const w = c.measureText(label).width + 62;
@@ -347,5 +359,5 @@ const ExportEngine = (() => {
 
   function toBlob(canvas) {return new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(Error('The image could not be encoded.')), 'image/png'))}
 
-  return {rowsFor, columnsFor, pdfPages, pdfBlob, slidePlan, slidePreview, slideBlob};
+  return {rowsFor, columnsFor, pdfPages, pdfBlob, slidePlan, mapViewport, slidePreview, slideBlob};
 })();

@@ -146,7 +146,7 @@ function drawMap(target='#mapSvg',code=S.country,mini=false,p=project(),mode=S.m
  const fill=f=>{const key=featureKey(f),empty=noPropertiesColor(p),ramp=()=>countColor(p,Math.sqrt(c[key]/max));if(mini)return c[key]?ramp():empty;if(plain)return empty;if(L.status&&ruleColor(key))return ruleColor(key);if(shade&&c[key])return ramp();if(L.status){const lid=continent?regionLegendId(p,f.properties.country,f.properties.name):regionLegendId(p,code,key);return lid?legendItem(lid,p)?.color||empty:empty}return L.dots&&ruleColor(key)||empty};
  const competition=key=>world?p.properties.some(r=>r.country===key&&r.competitor):p.regionRules?.[continent?key:code+':'+key]?.competition||mapProperties(p,code).some(r=>mapKey(r,code)===key&&r.competitor);
  const outlines=world?`<defs><filter id="world-outline" x="-5%" y="-5%" width="110%" height="110%"><feMorphology in="SourceAlpha" operator="dilate" radius=".8" result="expanded"/><feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline"/><feFlood flood-color="#ffffff" result="color"/><feComposite in="color" in2="outline" operator="in" result="border"/><feMerge><feMergeNode in="border"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="world-competition-outline" x="-5%" y="-5%" width="110%" height="110%"><feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="expanded"/><feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline"/><feFlood flood-color="${p.palette.Competition}" result="color"/><feComposite in="color" in2="outline" operator="in" result="border"/><feMerge><feMergeNode in="border"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`:'';
- el.setAttribute('viewBox',`0 0 ${w} ${hh}`);el.innerHTML=`${outlines}<g class="map-transform">${g.features.map(f=>{const key=featureKey(f),name=featureLabel(f),d=path(f);if(!d)return '';const pt=path.centroid(f),b=path.bounds(f),area=isCountryScope(code)?path.area(f):(b[1][0]-b[0][0])*(b[1][1]-b[0][1]),label=mini?'':world?key:f.properties.abbr||abbr(f.properties.name),count=c[key]||0,paint=fill(f),comp=competition(key),showLabel=!(isCountryScope(code)&&count&&!showNumbers),worldStyle=world?`stroke:${paint};stroke-width:.8;filter:url(#${comp?'world-competition-outline':'world-outline'});`:comp?'stroke:'+p.palette.Competition+';stroke-width:2;':'';return `<path class="region ${world?'world-country ':continent?'continent-state ':''}${!mini&&S.state===key?'selected':''}" d="${d}" fill="${paint}" ${mini?'':`data-state="${h(key)}" data-country="${h(continent?f.properties.country:world?key:code)}" data-label="${h(name)}" tabindex="0" role="button" aria-label="${h(name)}, ${count} properties"`} style="${worldStyle}"/><g ${!mini&&Number.isFinite(pt[0])?`class="map-label${count?' property-count-label':''}" data-x="${pt[0]}" data-y="${pt[1]}" data-area="${area}" ${continent?`data-continent-count="${count}" data-region="${h(key)}"`:''}`:''}>${!mini&&Number.isFinite(pt[0])?`${showLabel?`<text text-anchor="middle" y="${count&&showNumbers?-5:count&&L.dots?-8:4}" font-size="12" fill="#625a6c" font-weight="600">${h(label)}</text>`:''}${count&&showNumbers?`<rect x="-13" y="2" width="26" height="18" rx="4" fill="#ffffff"/><text class="property-count-number" text-anchor="middle" y="15.5" font-size="12" fill="#1f1a29" font-weight="700">${count}</text>`:''}`:''}</g>`}).join('')}${!mini&&L.dots?g.features.map(f=>{const pt=path.centroid(f);return Number.isFinite(pt[0])&&path(f)?dots(featureKey(f),pt):''}).join(''):''}${!mini&&L.locations?mapProperties(p,code).filter(r=>r.lat!==''&&r.lng!==''&&(isCountryScope(code)||!S.state||r.state===S.state)).map(r=>{const pt=pr([Number(r.lng),Number(r.lat)]),color=legendItem(propertyLegendId(r,p),p)?.color||p.palette[r.status];return pt&&(!continentView(code)||(pt[0]>=25&&pt[0]<=w-25&&pt[1]>=20&&pt[1]<=hh-28))?`<circle cx="${pt[0]}" cy="${pt[1]}" r="5.5" fill="${color}" stroke="white" stroke-width="2" data-property="${r.id}" tabindex="0" role="button" aria-label="${h(r.name)}"/>`:''}).join(''):''}</g>`;
+ el.setAttribute('viewBox',`0 0 ${w} ${hh}`);el.innerHTML=`${outlines}<g class="map-transform">${g.features.map(f=>{const key=featureKey(f),name=featureLabel(f),d=path(f);if(!d)return '';const pt=path.centroid(f),b=path.bounds(f),area=isCountryScope(code)?path.area(f):(b[1][0]-b[0][0])*(b[1][1]-b[0][1]),label=mini?'':world?key:f.properties.abbr||abbr(f.properties.name),count=c[key]||0,paint=fill(f),comp=competition(key),showLabel=!(isCountryScope(code)&&count&&!showNumbers),worldStyle=world?`stroke:${paint};stroke-width:.8;filter:url(#${comp?'world-competition-outline':'world-outline'});`:comp?'stroke:'+p.palette.Competition+';stroke-width:2;':'';return `<path class="region ${world?'world-country ':continent?'continent-state ':''}${!mini&&S.state===key?'selected':''}" d="${d}" fill="${paint}" ${mini?'':`data-state="${h(key)}" data-country="${h(continent?f.properties.country:world?key:code)}" data-label="${h(name)}" tabindex="0" role="button" aria-label="${h(name)}, ${count} properties"`} style="${worldStyle}"/><g ${!mini&&Number.isFinite(pt[0])?`class="map-label${count?' property-count-label':''}" data-x="${pt[0]}" data-y="${pt[1]}" data-area="${area}" data-label-key="${h(key)}" data-count="${count}" data-initials="${h(label)}" ${continent?`data-continent-count="${count}" data-region="${h(key)}"`:''}`:''}>${!mini&&Number.isFinite(pt[0])?`${showLabel?`<text text-anchor="middle" y="${count&&showNumbers?-5:count&&L.dots?-8:4}" font-size="12" fill="#625a6c" font-weight="600">${h(label)}</text>`:''}${count&&showNumbers?`<rect x="-13" y="2" width="26" height="18" rx="4" fill="#ffffff"/><text class="property-count-number" text-anchor="middle" y="15.5" font-size="12" fill="#1f1a29" font-weight="700">${count}</text>`:''}`:''}</g>`}).join('')}${!mini&&L.dots?g.features.map(f=>{const pt=path.centroid(f);return Number.isFinite(pt[0])&&path(f)?dots(featureKey(f),pt):''}).join(''):''}${!mini&&L.locations?mapProperties(p,code).filter(r=>r.lat!==''&&r.lng!==''&&(isCountryScope(code)||!S.state||r.state===S.state)).map(r=>{const pt=pr([Number(r.lng),Number(r.lat)]),color=legendItem(propertyLegendId(r,p),p)?.color||p.palette[r.status];return pt&&(!continentView(code)||(pt[0]>=25&&pt[0]<=w-25&&pt[1]>=20&&pt[1]<=hh-28))?`<circle cx="${pt[0]}" cy="${pt[1]}" r="5.5" fill="${color}" stroke="white" stroke-width="2" data-property="${r.id}" tabindex="0" role="button" aria-label="${h(r.name)}"/>`:''}).join(''):''}</g>`;
  if(!mini)el.querySelectorAll('[data-state]').forEach(node=>{const label=node.nextElementSibling?.querySelector('text');if(label)label.setAttribute('fill',contrastText(node.getAttribute('fill')))});
  if(continent&&!mini){const group=el.querySelector('.map-transform');el.querySelectorAll('.map-label').forEach(label=>{label.style.pointerEvents='none';group.append(label)})}
  if(still){layoutMapLabels(el,1,1);return}
@@ -212,7 +212,7 @@ async function exportDrawer(){
  <div class="export-preview" id="exportPreviewBox"><div id="exportPreview" class="slide-preview" role="img" aria-label="Preview of the exported slide"></div></div>
  <div class="export-summary"><strong id="exportCount"></strong><span id="exportEstimate"></span></div>
  ${selectField('Export as','kind',options([{value:'png',label:'Image for slides (PNG)'},{value:'pdf',label:'Full report · every field (PDF)'}],'png'),true)}
- <fieldset class="checks layer-checks"><legend>Show on the map — tick any to combine</legend><label><input name="countNumbers" type="checkbox" checked>${S.country===WORLD?'Country count labels (USA 207)':'State / province count labels'}</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
+ <fieldset class="checks layer-checks"><legend>Show on the map — tick any to combine</legend><label><input name="countNumbers" type="checkbox" checked>Map labels (initials and counts)</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
  <fieldset class="checks" id="pngChoices"><legend>PNG layout</legend><label><input name="pngSide" type="radio" value="overview" checked>Country overview</label><label><input name="pngSide" type="radio" value="list">Property list beside the map</label></fieldset>
  <div class="field-grid">${selectField('Properties','scope',options([{value:'all',label:`All ${all} in ${place}`},{value:'view',label:'Current filtered view'}],'all'),true,'id="exportScope"')}<div id="themeField">${selectField('Background','theme',options([{value:'light',label:'Light'},{value:'dark',label:'Dark'}],'light'),true)}</div></div>
  <div class="checks"><label><input name="legend" type="checkbox" checked>Show map legend</label><label><input name="date" type="checkbox" checked>Show date</label><label id="groupChoice"><input name="groupByState" type="checkbox" checked>Group the table by state / province</label><label id="customFieldsChoice"><input name="customFields" type="checkbox" checked>Include custom fields</label></div>
@@ -255,10 +255,94 @@ async function refreshExportPlan(){
 }
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
 const blob64=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(blob)});
-function exportMapMarkup(mode){
+// Export labels use the final map's pixel size, not the browser viewport. Small regions
+// get compact labels; crowded labels move into nearby free space with a leader line.
+function layoutExportMapLabels(svg,pixelWidth,pixelHeight){
+ const ns='http://www.w3.org/2000/svg',group=svg.querySelector('.map-transform');
+ if(!group)return;
+ const scale=Math.min(pixelWidth/900,pixelHeight/460),minimum=12/scale,maximum=28/scale,padding=3/scale;
+ const measure=document.createElement('canvas').getContext('2d'),labels=new Map(),cells=new Map(),cellSize=20;
+ const make=(name,attributes)=>{const node=document.createElementNS(ns,name);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,value);return node};
+ const cellKeys=box=>{const keys=[];for(let x=Math.floor(box.left/cellSize);x<=Math.floor(box.right/cellSize);x++)for(let y=Math.floor(box.top/cellSize);y<=Math.floor(box.bottom/cellSize);y++)keys.push(x+':'+y);return keys};
+ const overlaps=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+ const fits=box=>box.left>=8&&box.right<=892&&box.top>=8&&box.bottom<=452&&!cellKeys(box).some(key=>(cells.get(key)||[]).some(other=>overlaps(box,other)));
+ const reserve=box=>cellKeys(box).forEach(key=>{if(!cells.has(key))cells.set(key,[]);cells.get(key).push(box)});
+ svg.querySelectorAll('.map-label').forEach(node=>{
+  node.style.display='none';
+  const x=Number(node.dataset.x),y=Number(node.dataset.y),area=Number(node.dataset.area),key=node.dataset.labelKey;
+  if(!node.querySelector('text')||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>900||y<0||y>460||!(area>0))return;
+  if(!labels.has(key)||area>labels.get(key).area)labels.set(key,{node,x,y,area,count:Number(node.dataset.count||0),initials:node.dataset.initials});
+ });
+ const leaders=make('g',{'class':'export-label-leaders','pointer-events':'none'});group.append(leaders);
+ const ordered=[...labels.values()].sort((a,b)=>Number(b.count>0)-Number(a.count>0)||b.area-a.area||a.initials.localeCompare(b.initials));
+ const dimensions=(label,size)=>{
+  measure.font=`600 ${size}px Arial`;const initials=measure.measureText(label.initials).width;
+  measure.font=`700 ${size}px Arial`;const number=label.count&&label.node.querySelector('.property-count-number')?measure.measureText(String(label.count)).width:0;
+  const pill=number?number+size*.7:0,gap=pill?size*.3:0,width=initials+gap+pill;
+  return {size,initials,pill,gap,width,height:size*1.5};
+ };
+ for(const label of ordered){
+  let metrics,position;
+  const minSize=label.count?24/scale:minimum,maxSize=label.count?40/scale:maximum;
+  const preferred=Math.max(minSize,Math.min(maxSize,Math.sqrt(label.area)*.4));
+  const candidate=(x,y,m)=>({x,y,left:x-m.width/2-padding,right:x+m.width/2+padding,top:y-m.height/2-padding,bottom:y+m.height/2+padding});
+  // First shrink within the region before moving a label away from its map anchor.
+  for(let size=preferred;;size=Math.max(minSize,size*.85)){
+   const m=dimensions(label,size),box=candidate(label.x,label.y,m);
+   if(fits(box)){metrics=m;position=box;break}
+   if(size===minSize)break;
+  }
+  if(!position){
+   metrics=dimensions(label,Math.max(minSize,preferred*.85));
+   const step=Math.max(4,metrics.height*.65);
+   for(let radius=step;radius<1000&&!position;radius+=step){
+    const samples=Math.max(16,Math.ceil(2*Math.PI*radius/step));
+    for(let i=0;i<samples;i++){
+     const angle=-Math.PI/2+i*2*Math.PI/samples,box=candidate(label.x+radius*Math.cos(angle),label.y+radius*Math.sin(angle),metrics);
+     if(fits(box)){position=box;break}
+    }
+   }
+  }
+  // Extremely dense maps get a second packing pass at the minimum readable size.
+  if(!position){
+   metrics=dimensions(label,minSize);
+   for(let y=8+metrics.height;y<452&&!position;y+=metrics.height+padding*2)for(let x=8+metrics.width/2;x<892;x+=Math.max(2,metrics.width/3)){
+    const box=candidate(x,y,metrics);if(fits(box)){position=box;break}
+   }
+  }
+  if(!position)throw Error('This map has too many labels to fit legibly. Choose a smaller map area for export.');
+  reserve(position);
+  const {node}=label,{size,width,initials,pill,gap,height}=metrics,moved=Math.hypot(position.x-label.x,position.y-label.y)>size*.8;
+  node.replaceChildren();node.style.display='';node.style.pointerEvents='none';
+  node.setAttribute('transform',`translate(${position.x},${position.y})`);
+  node.setAttribute('data-export-font-px',(size*scale).toFixed(2));
+  node.setAttribute('data-export-box',[position.left,position.top,position.right,position.bottom].join(','));
+  node.setAttribute('data-export-callout',String(moved));
+  if(moved){
+   const endX=Math.max(position.left,Math.min(position.right,label.x)),endY=Math.max(position.top,Math.min(position.bottom,label.y));
+   leaders.append(make('path',{d:`M${label.x},${label.y}L${endX},${endY}`,fill:'none',stroke:'#77717d','stroke-width':1/scale,opacity:'.7'}));
+   node.append(make('path',{d:`M${-width/2-padding},${-height/2}h${width+padding*2}v${height}h${-width-padding*2}Z`,fill:'#ffffff','fill-opacity':'.94'}));
+  }
+  const text=make('text',{x:-width/2,y:size*.35,'font-family':'Arial, sans-serif','font-size':size,'font-weight':'600',fill:'#292431',stroke:'#ffffff','stroke-width':2/scale,'stroke-linejoin':'round','paint-order':'stroke fill'});
+  text.textContent=label.initials;node.append(text);
+  if(pill){
+   const x=-width/2+initials+gap;
+   node.append(make('rect',{x,y:-size*.65,width:pill,height:size*1.3,rx:size*.25,fill:'#ffffff'}));
+   const number=make('text',{x:x+pill/2,y:size*.35,'text-anchor':'middle','font-family':'Arial, sans-serif','font-size':size,'font-weight':'700',fill:'#1f1a29','class':'property-count-number'});
+   number.textContent=String(label.count);node.append(number);
+  }
+  group.append(node);
+ }
+ svg.setAttribute('data-label-layout','adaptive');
+}
+function exportMapMarkup(mode,context){
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
  drawMap(svg,S.country,false,project(),mode,true);
- svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('viewBox','0 0 900 460');svg.setAttribute('width','1800');svg.setAttribute('height','920');
+ context??=$('#exportForm')?exportContext($('#exportForm')):{showOverview:true};
+ const viewport=ExportEngine.mapViewport(context),pixelWidth=viewport.width*2,pixelHeight=viewport.height*2;
+ if(mode&&typeof mode==='object'&&mode.numbers===false)svg.querySelectorAll('.map-label,.export-label-leaders,text').forEach(node=>node.remove());
+ else layoutExportMapLabels(svg,pixelWidth,pixelHeight);
+ svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('viewBox','0 0 900 460');svg.setAttribute('width',String(Math.ceil(pixelWidth)));svg.setAttribute('height',String(Math.ceil(pixelHeight)));
  svg.querySelectorAll('.region').forEach(node=>{node.setAttribute('stroke','#fff');node.setAttribute('stroke-width','1.1');node.removeAttribute('tabindex')});
  svg.querySelectorAll('text').forEach(node=>node.setAttribute('font-family','Arial, sans-serif'));
  return new XMLSerializer().serializeToString(svg);

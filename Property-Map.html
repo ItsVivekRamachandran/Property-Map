@@ -886,7 +886,7 @@ async function exportDrawer(){
  <div class="export-preview" id="exportPreviewBox"><div id="exportPreview" class="slide-preview" role="img" aria-label="Preview of the exported slide"></div></div>
  <div class="export-summary"><strong id="exportCount"></strong><span id="exportEstimate"></span></div>
  ${selectField('Export as','kind',options([{value:'png',label:'Image for slides (PNG)'},{value:'pdf',label:'Full report · every field (PDF)'}],'png'),true)}
- <fieldset class="checks layer-checks"><legend>Show on the map — tick any to combine</legend><label><input name="countNumbers" type="checkbox" checked>${S.country===WORLD?'Country count labels (USA 207)':'State / province count labels'}</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
+ <fieldset class="checks layer-checks"><legend>Show on the map — tick any to combine</legend><label><input name="countNumbers" type="checkbox" checked>Map labels (initials and counts)</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
  <fieldset class="checks" id="pngChoices"><legend>PNG layout</legend><label><input name="pngSide" type="radio" value="overview" checked>Country overview</label><label><input name="pngSide" type="radio" value="list">Property list beside the map</label></fieldset>
  <div class="field-grid">${selectField('Properties','scope',options([{value:'all',label:`All ${all} in ${place}`},{value:'view',label:'Current filtered view'}],'all'),true,'id="exportScope"')}<div id="themeField">${selectField('Background','theme',options([{value:'light',label:'Light'},{value:'dark',label:'Dark'}],'light'),true)}</div></div>
  <div class="checks"><label><input name="legend" type="checkbox" checked>Show map legend</label><label><input name="date" type="checkbox" checked>Show date</label><label id="groupChoice"><input name="groupByState" type="checkbox" checked>Group the table by state / province</label><label id="customFieldsChoice"><input name="customFields" type="checkbox" checked>Include custom fields</label></div>
@@ -1014,7 +1014,8 @@ function exportMapMarkup(mode,context){
  drawMap(svg,S.country,false,project(),mode,true);
  context??=$('#exportForm')?exportContext($('#exportForm')):{showOverview:true};
  const viewport=ExportEngine.mapViewport(context),pixelWidth=viewport.width*2,pixelHeight=viewport.height*2;
- layoutExportMapLabels(svg,pixelWidth,pixelHeight);
+ if(mode&&typeof mode==='object'&&mode.numbers===false)svg.querySelectorAll('.map-label,.export-label-leaders,text').forEach(node=>node.remove());
+ else layoutExportMapLabels(svg,pixelWidth,pixelHeight);
  svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('viewBox','0 0 900 460');svg.setAttribute('width',String(Math.ceil(pixelWidth)));svg.setAttribute('height',String(Math.ceil(pixelHeight)));
  svg.querySelectorAll('.region').forEach(node=>{node.setAttribute('stroke','#fff');node.setAttribute('stroke-width','1.1');node.removeAttribute('tabindex')});
  svg.querySelectorAll('text').forEach(node=>node.setAttribute('font-family','Arial, sans-serif'));
