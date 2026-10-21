@@ -140,14 +140,14 @@ function drawMap(target='#mapSvg',code=S.country,mini=false,p=project(),mode=S.m
  const w=900,hh=460,pr=makeProjection(g,code,w,hh),path=d3.geoPath(pr);if(!mini&&!still)activeProjection=pr;
  const world=code===WORLD,continent=!!continentView(code),featureKey=f=>continent?f.properties.country+':'+f.properties.name:world?f.properties.code:f.properties.name,featureLabel=f=>continent?countryName(f.properties.country)+' / '+f.properties.name:f.properties.name,c={};mapProperties(p,code).forEach(r=>{const key=mapKey(r,code);c[key]=(c[key]||0)+1});const max=Math.max(1,...Object.values(c)),dotColor=regionDotColors(p,code);
  // One style name on screen; exports may combine several layers.
- const L=typeof mode==='string'?{[mode]:true}:mode,showNumbers=L.numbers??L.count,plain=L.locations&&!L.count&&!L.dots&&!L.status,shade=L.count||L.dots,ruleColor=key=>{const lid=world?'':p.regionRules?.[continent?key:code+':'+key]?.legendId;return lid?legendItem(lid,p)?.color||'':''};
+ const L=typeof mode==='string'?{[mode]:true}:mode,showNumbers=L.numbers??L.count,showStateLabels=L.stateLabels!==false,plain=L.locations&&!L.count&&!L.dots&&!L.status,shade=L.count||L.dots,ruleColor=key=>{const lid=world?'':p.regionRules?.[continent?key:code+':'+key]?.legendId;return lid?legendItem(lid,p)?.color||'':''};
  // Dot style: one dot per property, packed in a spiral below the region label. Dots show counts, not locations.
  const dots=(n,pt)=>{const count=c[n]||0,cy=pt[1]+(showNumbers?30+5.3*Math.sqrt(count):8+2.7*Math.sqrt(count));return Array.from({length:count},(_,i)=>{const r=5.3*Math.sqrt(i),t=i*2.39996;return `<circle class="count-dot" cx="${(pt[0]+r*Math.cos(t)).toFixed(1)}" cy="${(cy+r*Math.sin(t)).toFixed(1)}" r="3.5" fill="${dotColor[n]}" stroke="#ffffff" stroke-width=".9" pointer-events="none"/>`}).join('')};
  const fill=f=>{const key=featureKey(f),empty=noPropertiesColor(p),ramp=()=>countColor(p,Math.sqrt(c[key]/max));if(mini)return c[key]?ramp():empty;if(plain)return empty;if(L.status&&ruleColor(key))return ruleColor(key);if(shade&&c[key])return ramp();if(L.status){const lid=continent?regionLegendId(p,f.properties.country,f.properties.name):regionLegendId(p,code,key);return lid?legendItem(lid,p)?.color||empty:empty}return L.dots&&ruleColor(key)||empty};
  const competition=key=>world?p.properties.some(r=>r.country===key&&r.competitor):p.regionRules?.[continent?key:code+':'+key]?.competition||mapProperties(p,code).some(r=>mapKey(r,code)===key&&r.competitor);
  const outlines=world?`<defs><filter id="world-outline" x="-5%" y="-5%" width="110%" height="110%"><feMorphology in="SourceAlpha" operator="dilate" radius=".8" result="expanded"/><feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline"/><feFlood flood-color="#ffffff" result="color"/><feComposite in="color" in2="outline" operator="in" result="border"/><feMerge><feMergeNode in="border"/><feMergeNode in="SourceGraphic"/></feMerge></filter><filter id="world-competition-outline" x="-5%" y="-5%" width="110%" height="110%"><feMorphology in="SourceAlpha" operator="dilate" radius="1.8" result="expanded"/><feComposite in="expanded" in2="SourceAlpha" operator="out" result="outline"/><feFlood flood-color="${p.palette.Competition}" result="color"/><feComposite in="color" in2="outline" operator="in" result="border"/><feMerge><feMergeNode in="border"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`:'';
- el.setAttribute('viewBox',`0 0 ${w} ${hh}`);el.innerHTML=`${outlines}<g class="map-transform">${g.features.map(f=>{const key=featureKey(f),name=featureLabel(f),d=path(f);if(!d)return '';const pt=path.centroid(f),b=path.bounds(f),area=isCountryScope(code)?path.area(f):(b[1][0]-b[0][0])*(b[1][1]-b[0][1]),label=mini?'':world?key:f.properties.abbr||abbr(f.properties.name),count=c[key]||0,paint=fill(f),comp=competition(key),showLabel=!(isCountryScope(code)&&count&&!showNumbers),worldStyle=world?`stroke:${paint};stroke-width:.8;filter:url(#${comp?'world-competition-outline':'world-outline'});`:comp?'stroke:'+p.palette.Competition+';stroke-width:2;':'';return `<path class="region ${world?'world-country ':continent?'continent-state ':''}${!mini&&S.state===key?'selected':''}" d="${d}" fill="${paint}" ${mini?'':`data-state="${h(key)}" data-country="${h(continent?f.properties.country:world?key:code)}" data-label="${h(name)}" tabindex="0" role="button" aria-label="${h(name)}, ${count} properties"`} style="${worldStyle}"/><g ${!mini&&Number.isFinite(pt[0])?`class="map-label${count?' property-count-label':''}" data-x="${pt[0]}" data-y="${pt[1]}" data-area="${area}" data-label-key="${h(key)}" data-count="${count}" data-initials="${h(label)}" ${continent?`data-continent-count="${count}" data-region="${h(key)}"`:''}`:''}>${!mini&&Number.isFinite(pt[0])?`${showLabel?`<text text-anchor="middle" y="${count&&showNumbers?-5:count&&L.dots?-8:4}" font-size="12" fill="#625a6c" font-weight="600">${h(label)}</text>`:''}${count&&showNumbers?`<rect x="-13" y="2" width="26" height="18" rx="4" fill="#ffffff"/><text class="property-count-number" text-anchor="middle" y="15.5" font-size="12" fill="#1f1a29" font-weight="700">${count}</text>`:''}`:''}</g>`}).join('')}${!mini&&L.dots?g.features.map(f=>{const pt=path.centroid(f);return Number.isFinite(pt[0])&&path(f)?dots(featureKey(f),pt):''}).join(''):''}${!mini&&L.locations?mapProperties(p,code).filter(r=>r.lat!==''&&r.lng!==''&&(isCountryScope(code)||!S.state||r.state===S.state)).map(r=>{const pt=pr([Number(r.lng),Number(r.lat)]),color=legendItem(propertyLegendId(r,p),p)?.color||p.palette[r.status];return pt&&(!continentView(code)||(pt[0]>=25&&pt[0]<=w-25&&pt[1]>=20&&pt[1]<=hh-28))?`<circle cx="${pt[0]}" cy="${pt[1]}" r="5.5" fill="${color}" stroke="white" stroke-width="2" data-property="${r.id}" tabindex="0" role="button" aria-label="${h(r.name)}"/>`:''}).join(''):''}</g>`;
- if(!mini)el.querySelectorAll('[data-state]').forEach(node=>{const label=node.nextElementSibling?.querySelector('text');if(label)label.setAttribute('fill',contrastText(node.getAttribute('fill')))});
+ el.setAttribute('viewBox',`0 0 ${w} ${hh}`);el.innerHTML=`${outlines}<g class="map-transform">${g.features.map(f=>{const key=featureKey(f),name=featureLabel(f),d=path(f);if(!d)return '';const pt=path.centroid(f),b=path.bounds(f),area=isCountryScope(code)?path.area(f):(b[1][0]-b[0][0])*(b[1][1]-b[0][1]),label=mini?'':world?key:f.properties.abbr||abbr(f.properties.name),count=c[key]||0,paint=fill(f),comp=competition(key),worldStyle=world?`stroke:${paint};stroke-width:.8;filter:url(#${comp?'world-competition-outline':'world-outline'});`:comp?'stroke:'+p.palette.Competition+';stroke-width:2;':'';return `<path class="region ${world?'world-country ':continent?'continent-state ':''}${!mini&&S.state===key?'selected':''}" d="${d}" fill="${paint}" ${mini?'':`data-state="${h(key)}" data-country="${h(continent?f.properties.country:world?key:code)}" data-label="${h(name)}" tabindex="0" role="button" aria-label="${h(name)}, ${count} properties"`} style="${worldStyle}"/><g ${!mini&&Number.isFinite(pt[0])?`class="map-label${count?' property-count-label':''}" data-x="${pt[0]}" data-y="${pt[1]}" data-area="${area}" data-bounds="${b.flat().join(',')}" data-label-key="${h(key)}" data-count="${count}" data-initials="${h(label)}" ${continent?`data-continent-count="${count}" data-region="${h(key)}"`:''}`:''}>${!mini&&Number.isFinite(pt[0])?`${showStateLabels?`<text class="state-label" text-anchor="middle" y="${count&&showNumbers?-5:count&&L.dots?-8:4}" font-size="12" fill="#625a6c" font-weight="600">${h(label)}</text>`:''}${count&&showNumbers?`<rect x="-13" y="2" width="26" height="18" rx="4" fill="#ffffff"/><text class="property-count-number" text-anchor="middle" y="15.5" font-size="12" fill="#1f1a29" font-weight="700">${count}</text>`:''}`:''}</g>`}).join('')}${!mini&&L.dots?g.features.map(f=>{const pt=path.centroid(f);return Number.isFinite(pt[0])&&path(f)?dots(featureKey(f),pt):''}).join(''):''}${!mini&&L.locations?mapProperties(p,code).filter(r=>r.lat!==''&&r.lng!==''&&(isCountryScope(code)||!S.state||r.state===S.state)).map(r=>{const pt=pr([Number(r.lng),Number(r.lat)]),color=legendItem(propertyLegendId(r,p),p)?.color||p.palette[r.status];return pt&&(!continentView(code)||(pt[0]>=25&&pt[0]<=w-25&&pt[1]>=20&&pt[1]<=hh-28))?`<circle cx="${pt[0]}" cy="${pt[1]}" r="5.5" fill="${color}" stroke="white" stroke-width="2" data-property="${r.id}" tabindex="0" role="button" aria-label="${h(r.name)}"/>`:''}).join(''):''}</g>`;
+ if(!mini)el.querySelectorAll('[data-state]').forEach(node=>{const label=node.nextElementSibling?.querySelector('.state-label');if(label)label.setAttribute('fill',contrastText(node.getAttribute('fill')))});
  if(continent&&!mini){const group=el.querySelector('.map-transform');el.querySelectorAll('.map-label').forEach(label=>{label.style.pointerEvents='none';group.append(label)})}
  if(still){layoutMapLabels(el,1,1);return}
  if(!mini){el.setAttribute('role','group');const svg=d3.select(el),zoom=d3.zoom().scaleExtent([1,8]).on('zoom',event=>{svg.select('.map-transform').attr('transform',event.transform);layoutMapLabels(el,event.transform.k)});svg.call(zoom);el._zoom=zoom;layoutMapLabels(el);const regions=[...el.querySelectorAll('[data-state]')],active=Math.max(0,regions.findIndex(n=>n.dataset.state===S.state));regions.forEach((node,i)=>{const count=c[node.dataset.state]||0,name=node.dataset.label||node.dataset.state;node.tabIndex=i===active?0:-1;node.setAttribute('aria-label',`${name}, ${count} ${count===1?'property':'properties'}`);node.addEventListener('click',()=>selectRegion(node.dataset.state));node.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();selectRegion(node.dataset.state);return}let next;if(['ArrowRight','ArrowDown'].includes(e.key))next=(i+1)%regions.length;if(['ArrowLeft','ArrowUp'].includes(e.key))next=(i-1+regions.length)%regions.length;if(e.key==='Home')next=0;if(e.key==='End')next=regions.length-1;if(next!==undefined){e.preventDefault();regions.forEach(n=>n.tabIndex=-1);regions[next].tabIndex=0;regions[next].focus()}});node.addEventListener('pointerenter',e=>showTip(e,`${name} · ${count} ${count===1?'property':'properties'}`));node.addEventListener('pointerleave',hideTip)});el.querySelectorAll('[data-property]').forEach(n=>{n.tabIndex=-1;n.addEventListener('click',()=>propertyDrawer(n.dataset.property))})}
@@ -209,15 +209,24 @@ async function exportDrawer(){
  const all=exportPool().length,place=countryName(S.country);
  drawer('Export','One image for your slides, or a full PDF report.',
  `<form id="exportForm"><div id="formError"></div>
- <div class="export-preview" id="exportPreviewBox"><div id="exportPreview" class="slide-preview" role="img" aria-label="Preview of the exported slide"></div></div>
- <div class="export-summary"><strong id="exportCount"></strong><span id="exportEstimate"></span></div>
- ${selectField('Export as','kind',options([{value:'png',label:'Image for slides (PNG)'},{value:'pdf',label:'Full report · every field (PDF)'}],'png'),true)}
- <fieldset class="checks layer-checks"><legend>Show on the map — tick any to combine</legend><label><input name="countNumbers" type="checkbox" checked>Map labels (initials and counts)</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
- <fieldset class="checks" id="pngChoices"><legend>PNG layout</legend><label><input name="pngSide" type="radio" value="overview" checked>Country overview</label><label><input name="pngSide" type="radio" value="list">Property list beside the map</label></fieldset>
- <div class="field-grid">${selectField('Properties','scope',options([{value:'all',label:`All ${all} in ${place}`},{value:'view',label:'Current filtered view'}],'all'),true,'id="exportScope"')}<div id="themeField">${selectField('Background','theme',options([{value:'light',label:'Light'},{value:'dark',label:'Dark'}],'light'),true)}</div></div>
- <div class="checks"><label><input name="legend" type="checkbox" checked>Show map legend</label><label><input name="date" type="checkbox" checked>Show date</label><label id="groupChoice"><input name="groupByState" type="checkbox" checked>Group the table by state / province</label><label id="customFieldsChoice"><input name="customFields" type="checkbox" checked>Include custom fields</label></div>
- <div class="hint" id="exportLayoutHint"></div>
- <div class="section-title">Included properties <span id="exportListCount" class="muted"></span></div><div id="exportRecords" class="export-records" tabindex="0" role="region" aria-label="Included properties"></div>
+ <section class="export-section"><div class="export-section-head"><span class="export-step">01</span><div><h3>Choose a format</h3><p>Pick the file that fits how you’ll share your work.</p></div></div>
+ ${selectField('Export as','kind',options([{value:'png',label:'Image for slides (PNG)'},{value:'pdf',label:'Full report · every field (PDF)'}],'png'),true)}</section>
+ <section class="export-output"><div class="export-preview" id="exportPreviewBox"><div id="exportPreview" class="slide-preview" role="img" aria-label="Preview of the exported slide"></div></div>
+ <div class="export-summary"><div><span class="export-summary-label">IN THIS EXPORT</span><strong id="exportCount"></strong></div><span class="export-estimate" id="exportEstimate"></span></div></section>
+ <section class="export-section"><div class="export-section-head"><span class="export-step">02</span><div><h3>Choose what to include</h3><p>Set the property scope and report details.</p></div></div>
+ <div class="field-grid">
+  ${selectField('Properties','scope',options([{value:'all',label:`All ${all} in ${place}`},{value:'view',label:'Current filtered view'}],'all'),true,'id="exportScope"')}<div id="themeField">${selectField('Background','theme',options([{value:'light',label:'Light'},{value:'dark',label:'Dark'}],'light'),true)}</div>
+ </div>
+ <div class="checks export-inline-options"><label><input name="legend" type="checkbox" checked>Show map legend</label><label><input name="date" type="checkbox" checked>Show date</label><label id="groupChoice"><input name="groupByState" type="checkbox" checked>Group the table by state / province</label><label id="customFieldsChoice"><input name="customFields" type="checkbox" checked>Include custom fields</label></div></section>
+ <section class="export-section export-map-section"><div class="export-section-head"><span class="export-step">03</span><div><h3>Map appearance</h3><p>Labels resize to fit each view. Labels that cannot fit are hidden.</p></div></div>
+ <fieldset class="checks layer-checks"><legend>Map layers</legend><label><input name="stateLabels" type="checkbox" checked>State labels</label><label><input name="countNumbers" type="checkbox" checked>Count labels</label>${MAP_MODES.map(([m,label])=>`<label><input name="layer_${m}" type="checkbox" ${S.mapMode===m?'checked':''}>${m==='count'?'Count color shading':label}</label>`).join('')}</fieldset>
+ <fieldset class="checks export-png-layout" id="pngChoices"><legend>PNG layout</legend><label><input name="pngSide" type="radio" value="overview" checked>Country overview</label><label><input name="pngSide" type="radio" value="list">Property list beside the map</label></fieldset></section>
+ <section class="export-section export-text-section"><div class="export-section-head"><span class="export-step">04</span><div><h3>Report details</h3><p>Add a heading or a confidential watermark.</p></div></div>
+ <div class="field-grid export-text-options">
+  ${field('Report heading','reportTitle','text','PROPERTY MAP / PORTFOLIO REPORT',true,'maxlength="100" placeholder="e.g. Regional portfolio review"')}
+  <div class="field watermark-field"><span>Watermark</span><label class="row"><input name="watermark" type="checkbox">Show watermark label</label><label class="sr-only" for="watermarkText">Watermark text</label><input id="watermarkText" name="watermarkText" type="text" value="CONFIDENTIAL" maxlength="120" placeholder="e.g. CONFIDENTIAL" disabled><small>Adds a red <strong>** Text</strong> label at the bottom-left of the PNG and every PDF page.</small></div>
+ </div></section>
+ <section class="export-section export-included-section"><div class="export-section-head"><span class="export-step">05</span><div><h3>Included properties <span id="exportListCount" class="muted"></span></h3><p id="exportLayoutHint"></p></div></div><div id="exportRecords" class="export-records" tabindex="0" role="region" aria-label="Included properties"></div></section>
  </form>`,btn('Cancel','close')+btn('Copy image','copy-export','content_copy','','id="exportCopy" type="button"')+'<button class="primary" form="exportForm" id="exportButton">Download PNG</button>',true);
  await refreshExportPlan();
 }
@@ -230,12 +239,13 @@ function exportColumns(rows,form){
 }
 function exportContext(form){
  const fd=new FormData(form),layers=Object.fromEntries(MAP_MODES.map(([m])=>[m,fd.has('layer_'+m)]));
- layers.numbers=fd.has('countNumbers');
- return {project:project(),rows:exportRows(form),countryName:countryName(S.country),countryNames:Object.fromEntries(S.countries.map(c=>[c.code,c.name])),mapFocus:isCountryScope(S.country)?'':[S.state,S.district].filter(Boolean).join(' / '),world:isCountryScope(S.country),continent:!!continentView(S.country),layers,kind:fd.get('kind'),showOverview:fd.get('pngSide')==='overview',showList:fd.get('pngSide')==='list',groupByState:fd.has('groupByState'),theme:fd.get('theme'),dotColors:layers.dots?regionDotColors(project(),S.country):null,includeLegend:fd.has('legend'),includeDate:fd.has('date')};
+ layers.numbers=fd.has('countNumbers');layers.stateLabels=fd.has('stateLabels');
+ return {project:project(),rows:exportRows(form),countryName:countryName(S.country),countryNames:Object.fromEntries(S.countries.map(c=>[c.code,c.name])),mapFocus:isCountryScope(S.country)?'':[S.state,S.district].filter(Boolean).join(' / '),world:isCountryScope(S.country),continent:!!continentView(S.country),layers,kind:fd.get('kind'),showOverview:fd.get('pngSide')==='overview',showList:fd.get('pngSide')==='list',groupByState:fd.has('groupByState'),theme:fd.get('theme'),dotColors:layers.dots?regionDotColors(project(),S.country):null,includeLegend:fd.has('legend'),includeDate:fd.has('date'),reportTitle:String(fd.get('reportTitle')||'PROPERTY MAP / PORTFOLIO REPORT').trim(),includeWatermark:fd.has('watermark'),watermarkText:String(fd.get('watermarkText')||'').trim()};
 }
 let exportPreviewRun=0;
 async function refreshExportPlan(){
  const form=$('#exportForm');if(!form)return;
+ const watermarkText=form.elements.watermarkText,watermarkOn=form.elements.watermark.checked;watermarkText.disabled=!watermarkOn;watermarkText.required=watermarkOn;
  const context=exportContext(form),{rows,kind}=context,all=exportPool().length,pdf=kind==='pdf';
  $('#themeField').style.display=$('#pngChoices').style.display=pdf?'none':'';$('#customFieldsChoice').style.display=$('#groupChoice').style.display=pdf?'flex':'none';$('#exportPreviewBox').style.display=pdf?'none':'block';$('#exportCopy').style.display=!pdf&&navigator.clipboard&&window.ClipboardItem?'':'none';
  $('#exportCount').textContent=`${rows.length} of ${all} ${context.countryName} properties included`;
@@ -255,92 +265,103 @@ async function refreshExportPlan(){
 }
 function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000)}
 const blob64=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(blob)});
-// Export labels use the final map's pixel size, not the browser viewport. Small regions
-// get compact labels; crowded labels move into nearby free space with a leader line.
+// Size labels for the actual export viewport. Labels must fit their own visible region;
+// dense views hide labels instead of moving them into unrelated regions or open water.
 function layoutExportMapLabels(svg,pixelWidth,pixelHeight){
  const ns='http://www.w3.org/2000/svg',group=svg.querySelector('.map-transform');
  if(!group)return;
- const scale=Math.min(pixelWidth/900,pixelHeight/460),minimum=12/scale,maximum=28/scale,padding=3/scale;
- const measure=document.createElement('canvas').getContext('2d'),labels=new Map(),cells=new Map(),cellSize=20;
+ const scale=Math.min(pixelWidth/900,pixelHeight/460),padding=3/scale;
+ const measure=document.createElement('canvas').getContext('2d'),labels=new Map(),occupied=[];
+ const regions=new Map([...svg.querySelectorAll('.region')].map(node=>[node.dataset.state,node]));
  const make=(name,attributes)=>{const node=document.createElementNS(ns,name);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,value);return node};
- const cellKeys=box=>{const keys=[];for(let x=Math.floor(box.left/cellSize);x<=Math.floor(box.right/cellSize);x++)for(let y=Math.floor(box.top/cellSize);y<=Math.floor(box.bottom/cellSize);y++)keys.push(x+':'+y);return keys};
  const overlaps=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
- const fits=box=>box.left>=8&&box.right<=892&&box.top>=8&&box.bottom<=452&&!cellKeys(box).some(key=>(cells.get(key)||[]).some(other=>overlaps(box,other)));
- const reserve=box=>cellKeys(box).forEach(key=>{if(!cells.has(key))cells.set(key,[]);cells.get(key).push(box)});
  svg.querySelectorAll('.map-label').forEach(node=>{
-  node.style.display='none';
   const x=Number(node.dataset.x),y=Number(node.dataset.y),area=Number(node.dataset.area),key=node.dataset.labelKey;
-  if(!node.querySelector('text')||!Number.isFinite(x)||!Number.isFinite(y)||x<0||x>900||y<0||y>460||!(area>0))return;
-  if(!labels.has(key)||area>labels.get(key).area)labels.set(key,{node,x,y,area,count:Number(node.dataset.count||0),initials:node.dataset.initials});
+  const hasState=!!node.querySelector('.state-label'),hasCount=!!node.querySelector('.property-count-number'),region=regions.get(key);
+  const bounds=(node.dataset.bounds||'').split(',').map(Number);
+  node.remove();
+  if((!hasState&&!hasCount)||!region||!Number.isFinite(x)||!Number.isFinite(y)||!(area>0)||bounds.length!==4||!bounds.every(Number.isFinite))return;
+  if(!labels.has(key)||area>labels.get(key).area)labels.set(key,{node,x,y,area,bounds,shape:new Path2D(region.getAttribute('d')),totalCount:Number(node.dataset.count||0),count:hasCount?Number(node.dataset.count||0):0,initials:hasState?node.dataset.initials:'',hasState,hasCount});
  });
- const leaders=make('g',{'class':'export-label-leaders','pointer-events':'none'});group.append(leaders);
- const ordered=[...labels.values()].sort((a,b)=>Number(b.count>0)-Number(a.count>0)||b.area-a.area||a.initials.localeCompare(b.initials));
- const dimensions=(label,size)=>{
-  measure.font=`600 ${size}px Arial`;const initials=measure.measureText(label.initials).width;
-  measure.font=`700 ${size}px Arial`;const number=label.count&&label.node.querySelector('.property-count-number')?measure.measureText(String(label.count)).width:0;
-  const pill=number?number+size*.7:0,gap=pill?size*.3:0,width=initials+gap+pill;
-  return {size,initials,pill,gap,width,height:size*1.5};
+ svg.querySelectorAll('.export-label-leaders').forEach(node=>node.remove());
+ const ordered=[...labels.values()].sort((a,b)=>Number(b.totalCount>0)-Number(a.totalCount>0)||b.totalCount-a.totalCount||b.area-a.area||a.initials.localeCompare(b.initials));
+ const density=.75+.25*Math.min(1,Math.sqrt(60/Math.max(1,ordered.length)));
+ const dimensions=(label,size,stacked,showState=label.hasState)=>{
+  measure.font=`600 ${size}px Arial`;const initials=showState?measure.measureText(label.initials).width:0;
+  measure.font=`700 ${size}px Arial`;const number=label.hasCount?measure.measureText(String(label.count)).width:0;
+  const pill=number?number+size*.7:0,gap=initials&&pill?size*.3:0;
+  return {size,initials,pill,gap,stacked,showState,width:stacked?Math.max(initials,pill):initials+gap+pill,height:size*(stacked?2.65:1.5)};
  };
  for(const label of ordered){
+  const [west,north,east,south]=label.bounds,left=Math.max(12,west),top=Math.max(12,north),right=Math.min(888,east),bottom=Math.min(448,south);
+  if(right<=left||bottom<=top)continue;
+  const inside=(x,y)=>measure.isPointInPath(label.shape,x,y),anchors=[];
+  const addAnchor=(x,y)=>{if(x>=left&&x<=right&&y>=top&&y<=bottom&&inside(x,y))anchors.push({x,y,distance:Math.hypot(x-label.x,y-label.y)})};
+  addAnchor(label.x,label.y);addAnchor((left+right)/2,(top+bottom)/2);
+  // Search only inside this region, including concave shapes whose centroid is offshore.
+  for(let iy=1;iy<12;iy++)for(let ix=1;ix<12;ix++)addAnchor(left+(right-left)*ix/12,top+(bottom-top)*iy/12);
+  anchors.sort((a,b)=>a.distance-b.distance);
+  const fits=box=>{
+   if(box.left<left||box.right>right||box.top<top||box.bottom>bottom||occupied.some(other=>overlaps(box,other)))return false;
+   // Check the whole label footprint against the geographic outline, not just its bounds.
+   for(let iy=0;iy<=4;iy++)for(let ix=0;ix<=6;ix++)if(!inside(box.left+(box.right-box.left)*ix/6,box.top+(box.bottom-box.top)*iy/4))return false;
+   return true;
+  };
+  const minSize=(label.hasCount?20:18)/scale,maxSize=(label.hasCount?42:32)*density/scale;
+  const preferred=Math.max(minSize,Math.min(maxSize,Math.sqrt(label.area)*(label.totalCount ? .36 : .28)));
   let metrics,position;
-  const minSize=label.count?24/scale:minimum,maxSize=label.count?40/scale:maximum;
-  const preferred=Math.max(minSize,Math.min(maxSize,Math.sqrt(label.area)*.4));
-  const candidate=(x,y,m)=>({x,y,left:x-m.width/2-padding,right:x+m.width/2+padding,top:y-m.height/2-padding,bottom:y+m.height/2+padding});
-  // First shrink within the region before moving a label away from its map anchor.
   for(let size=preferred;;size=Math.max(minSize,size*.85)){
-   const m=dimensions(label,size),box=candidate(label.x,label.y,m);
-   if(fits(box)){metrics=m;position=box;break}
-   if(size===minSize)break;
-  }
-  if(!position){
-   metrics=dimensions(label,Math.max(minSize,preferred*.85));
-   const step=Math.max(4,metrics.height*.65);
-   for(let radius=step;radius<1000&&!position;radius+=step){
-    const samples=Math.max(16,Math.ceil(2*Math.PI*radius/step));
-    for(let i=0;i<samples;i++){
-     const angle=-Math.PI/2+i*2*Math.PI/samples,box=candidate(label.x+radius*Math.cos(angle),label.y+radius*Math.sin(angle),metrics);
-     if(fits(box)){position=box;break}
+   const layouts=label.hasState&&label.hasCount?[false,true]:[false];
+   for(const stacked of layouts){
+    const m=dimensions(label,size,stacked);
+    for(const anchor of anchors){
+     const box={x:anchor.x,y:anchor.y,left:anchor.x-m.width/2-padding,right:anchor.x+m.width/2+padding,top:anchor.y-m.height/2-padding,bottom:anchor.y+m.height/2+padding};
+     if(fits(box)){metrics=m;position=box;break}
     }
+    if(position)break;
+   }
+   if(position||size===minSize)break;
+  }
+  // Keep a readable count when its state abbreviation is the part that cannot fit.
+  if(!position&&label.hasState&&label.hasCount){
+   for(let size=preferred;;size=Math.max(minSize,size*.85)){
+    const m=dimensions(label,size,false,false);
+    for(const anchor of anchors){
+     const box={x:anchor.x,y:anchor.y,left:anchor.x-m.width/2-padding,right:anchor.x+m.width/2+padding,top:anchor.y-m.height/2-padding,bottom:anchor.y+m.height/2+padding};
+     if(fits(box)){metrics=m;position=box;break}
+    }
+    if(position||size===minSize)break;
    }
   }
-  // Extremely dense maps get a second packing pass at the minimum readable size.
-  if(!position){
-   metrics=dimensions(label,minSize);
-   for(let y=8+metrics.height;y<452&&!position;y+=metrics.height+padding*2)for(let x=8+metrics.width/2;x<892;x+=Math.max(2,metrics.width/3)){
-    const box=candidate(x,y,metrics);if(fits(box)){position=box;break}
-   }
-  }
-  if(!position)throw Error('This map has too many labels to fit legibly. Choose a smaller map area for export.');
-  reserve(position);
-  const {node}=label,{size,width,initials,pill,gap,height}=metrics,moved=Math.hypot(position.x-label.x,position.y-label.y)>size*.8;
+  if(!position)continue;
+  occupied.push(position);
+  const {node}=label,{size,width,initials,pill,gap,stacked,showState}=metrics;
   node.replaceChildren();node.style.display='';node.style.pointerEvents='none';
   node.setAttribute('transform',`translate(${position.x},${position.y})`);
   node.setAttribute('data-export-font-px',(size*scale).toFixed(2));
   node.setAttribute('data-export-box',[position.left,position.top,position.right,position.bottom].join(','));
-  node.setAttribute('data-export-callout',String(moved));
-  if(moved){
-   const endX=Math.max(position.left,Math.min(position.right,label.x)),endY=Math.max(position.top,Math.min(position.bottom,label.y));
-   leaders.append(make('path',{d:`M${label.x},${label.y}L${endX},${endY}`,fill:'none',stroke:'#77717d','stroke-width':1/scale,opacity:'.7'}));
-   node.append(make('path',{d:`M${-width/2-padding},${-height/2}h${width+padding*2}v${height}h${-width-padding*2}Z`,fill:'#ffffff','fill-opacity':'.94'}));
+  node.setAttribute('data-export-callout','false');node.setAttribute('data-export-layout',stacked?'stacked':'inline');
+  if(showState){
+   const text=make('text',{x:!stacked&&pill?-width/2:0,y:size*(stacked?-.35:.35),'text-anchor':!stacked&&pill?'start':'middle','font-family':'Arial, sans-serif','font-size':size,'font-weight':'600',fill:'#292431',stroke:'#ffffff','stroke-width':2/scale,'stroke-linejoin':'round','paint-order':'stroke fill','class':'state-label'});
+   text.textContent=label.initials;node.append(text);
   }
-  const text=make('text',{x:-width/2,y:size*.35,'font-family':'Arial, sans-serif','font-size':size,'font-weight':'600',fill:'#292431',stroke:'#ffffff','stroke-width':2/scale,'stroke-linejoin':'round','paint-order':'stroke fill'});
-  text.textContent=label.initials;node.append(text);
   if(pill){
-   const x=-width/2+initials+gap;
-   node.append(make('rect',{x,y:-size*.65,width:pill,height:size*1.3,rx:size*.25,fill:'#ffffff'}));
-   const number=make('text',{x:x+pill/2,y:size*.35,'text-anchor':'middle','font-family':'Arial, sans-serif','font-size':size,'font-weight':'700',fill:'#1f1a29','class':'property-count-number'});
+   const x=stacked?-pill/2:-width/2+initials+gap,y=stacked?0:-size*.65;
+   node.append(make('rect',{x,y,width:pill,height:size*1.3,rx:size*.25,fill:'#ffffff'}));
+   const number=make('text',{x:x+pill/2,y:size*(stacked?1:.35),'text-anchor':'middle','font-family':'Arial, sans-serif','font-size':size,'font-weight':'700',fill:'#1f1a29','class':'property-count-number'});
    number.textContent=String(label.count);node.append(number);
   }
   group.append(node);
  }
- svg.setAttribute('data-label-layout','adaptive');
+ svg.setAttribute('data-label-layout','adaptive-contained');
 }
 function exportMapMarkup(mode,context){
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
  drawMap(svg,S.country,false,project(),mode,true);
  context??=$('#exportForm')?exportContext($('#exportForm')):{showOverview:true};
  const viewport=ExportEngine.mapViewport(context),pixelWidth=viewport.width*2,pixelHeight=viewport.height*2;
- if(mode&&typeof mode==='object'&&mode.numbers===false)svg.querySelectorAll('.map-label,.export-label-leaders,text').forEach(node=>node.remove());
+ const numbersEnabled=typeof mode==='string'?mode==='count':mode?.numbers??mode?.count,stateLabelsEnabled=mode!==null&&typeof mode==='object'?mode.stateLabels!==false:true;
+ if(!numbersEnabled&&!stateLabelsEnabled)svg.querySelectorAll('.map-label,.export-label-leaders,text').forEach(node=>node.remove());
  else layoutExportMapLabels(svg,pixelWidth,pixelHeight);
  svg.setAttribute('xmlns','http://www.w3.org/2000/svg');svg.setAttribute('viewBox','0 0 900 460');svg.setAttribute('width',String(Math.ceil(pixelWidth)));svg.setAttribute('height',String(Math.ceil(pixelHeight)));
  svg.querySelectorAll('.region').forEach(node=>{node.setAttribute('stroke','#fff');node.setAttribute('stroke-width','1.1');node.removeAttribute('tabindex')});
@@ -434,8 +455,8 @@ async function action(a,el){
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el||el.disabled)return;try{await action(el.dataset.action,el)}catch(err){showError(err)}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#overlay').children.length)closeDrawer();if(e.key==='Tab'&&$('#overlay').children.length){const els=$$('#overlay button:not([disabled]),#overlay input:not([disabled]):not([type=hidden]),#overlay select:not([disabled]),#overlay textarea:not([disabled]),#overlay a');const first=els[0],last=els.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}if(e.key==='Enter'&&e.target.matches('[data-action][role=button]'))e.target.click()});
 addEventListener('resize',()=>{const el=$('#mapSvg');if(el)layoutMapLabels(el,d3.zoomTransform(el).k)});
-let searchTimer;
-document.addEventListener('input',e=>{const el=e.target;if(el.id==='propertySearch'||el.id==='projectSearch'){const pos=el.selectionStart,name=el.id;clearTimeout(searchTimer);searchTimer=setTimeout(async()=>{if(name==='propertySearch'){S.search=el.value;S.page=1}else S.projectSearch=el.value;await render();const n=$('#'+name);n?.focus();n?.setSelectionRange(pos,pos)},180)}if(el.dataset.color){S.colorDraft[el.dataset.color]=el.value;$(`[data-hex="${el.dataset.color}"]`).value=el.value}if(el.dataset.hex){S.colorDraft[el.dataset.hex]=el.value;if(/^#[0-9a-fA-F]{6}$/.test(el.value))$(`[data-color="${el.dataset.hex}"]`).value=el.value}});
+let searchTimer,exportInputTimer;
+document.addEventListener('input',e=>{const el=e.target;if(el.id==='propertySearch'||el.id==='projectSearch'){const pos=el.selectionStart,name=el.id;clearTimeout(searchTimer);searchTimer=setTimeout(async()=>{if(name==='propertySearch'){S.search=el.value;S.page=1}else S.projectSearch=el.value;await render();const n=$('#'+name);n?.focus();n?.setSelectionRange(pos,pos)},180)}if(el.dataset.color){S.colorDraft[el.dataset.color]=el.value;$(`[data-hex="${el.dataset.color}"]`).value=el.value}if(el.dataset.hex){S.colorDraft[el.dataset.hex]=el.value;if(/^#[0-9a-fA-F]{6}$/.test(el.value))$(`[data-color="${el.dataset.hex}"]`).value=el.value}if(el.closest('#exportForm')&&(el.name==='reportTitle'||el.name==='watermarkText')){clearTimeout(exportInputTimer);exportInputTimer=setTimeout(()=>refreshExportPlan().catch(showError),180)}});
 document.addEventListener('change',async e=>{const el=e.target;try{
  if(el.id==='countryFilter'){S.country=el.value;S.state='';S.district='';S.page=1;S.search='';await render()}
  if(el.id==='worldCountryFilter'&&el.value){S.country=el.value;S.state='';S.district='';S.page=1;await render()}

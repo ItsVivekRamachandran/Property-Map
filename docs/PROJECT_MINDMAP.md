@@ -68,6 +68,7 @@ mindmap
         Map and list share a 16 by 9 slide and long names wrap
         Image grows taller only when 12px text cannot fit
         Map layers can be combined
+        Editable report heading and optional red bottom-left watermark label
         PDF map plus directory pages with measured column widths
         PDF table can be grouped into state sections
         PDF overview counts every legend and every region in one or two columns
@@ -185,7 +186,7 @@ mindmap
       tests export_complete.cjs
         Single image clipboard copy combined layers long lists and PDF completeness
       tests export_labels.cjs
-        Label toggle removes all geographic text badges and callouts across country World and six continent exports
+        Independent label controls and adaptive placement within region outlines across PNG PDF country World and six continent exports
       tests offline_export.cjs
         Self-contained preview and offline exports
         Required-field rollout in the standalone adapter
@@ -252,9 +253,10 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - The US state list offers only the 50 states and DC (FIPS below 60), matching what the validators accept.
 - Effective custom fields resolve in this order: account defaults, team overrides, project overrides; a locked account field wins.
 - Exports must not silently omit records or truncate values. The PNG export is always one image: the map and list resize to share a 16:9 slide (3840 × 2160), long names wrap, and only a list that cannot fit at 12px makes the image taller.
-- When map labels are enabled, export initials and counts use the final map viewport for adaptive font sizing and collision-free callouts. Source `public/app.js` and `public/export-engine.js` own this layout; rebuild the standalone HTML from these sources to retain the behavior.
+- The export report heading is editable per export. When enabled, the watermark is drawn exactly once as a red `** Text` label at the bottom-left of the PNG and every PDF page.
+- When map labels are enabled, export initials and counts adapt to each region’s visible area, label density and final map viewport. Labels stay inside their geographic regions without overlaps or callouts; labels that cannot fit at a readable size are hidden. Property records and overview totals remain complete. Source `public/app.js` and `public/export-engine.js` own this layout; rebuild the standalone HTML from these sources to retain the behavior.
 - Exports and CSV downloads respect the selected country, continent, or World scope. Continent counts and directories include all records assigned to its member countries, including any overseas locations outside the camera frame.
-- The export checkbox `Map labels (initials and counts)` controls all geographic text, badges and callout lines, including empty regions, in country, continent and World views. Turning it off removes them from the shared SVG used by previews, PNG downloads, clipboard images and PDF maps; map colors, property dots, pins and the separately controlled legend remain unchanged. Its mutually exclusive PNG layout choice shows either the PDF-style country overview or the grouped property list beside the map. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
+- Export controls `State labels` and `Count labels` independently, including in country, continent and World views. Turning both off removes geographic text and count badges from the shared SVG used by previews, PNG downloads, clipboard images and PDF maps; map colors, property dots, pins and the separately controlled legend remain unchanged. The mutually exclusive PNG layout choice shows either the PDF-style country overview or the grouped property list beside the map. Exports are saved to the current project and downloaded; the image can also be copied to the clipboard.
 - Dots in the dot map style show counts per region, never locations; the map, side list and slide share one colour per region.
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
 - Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.

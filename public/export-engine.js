@@ -10,6 +10,20 @@ const ExportEngine = (() => {
     light: {bg: '#faf9f6', card: '#ffffff', ink: '#242b34', sub: '#655e6b', line: '#e8e7e4'},
     dark: {bg: '#33303b', card: '#3f3b49', ink: '#ffffff', sub: '#d6d1dc', line: '#5a5566'}
   };
+  const DEFAULT_REPORT_TITLE = 'PROPERTY MAP / PORTFOLIO REPORT';
+  const reportTitle = context => String(context.reportTitle || '').trim() || DEFAULT_REPORT_TITLE;
+
+  // Draw exactly one compact footer label. Keeping this in the canvas pipeline makes the PNG
+  // preview/download and every PDF page use identical placement and styling.
+  function drawWatermarkLabel(c, context, height) {
+    const text = String(context.watermarkText || '').trim();
+    if (!context.includeWatermark || !text) return;
+    c.save();
+    c.fillStyle = '#c62828'; c.font = '700 18px Arial';
+    c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+    c.fillText(`** ${text}`, 70, height - 18);
+    c.restore();
+  }
 
   function mapLegendEntries(project, layers) {
     const entries = [];
@@ -197,7 +211,7 @@ const ExportEngine = (() => {
 
   function drawMapPage(c, context, img, width) {
     const {project, rows, countryName, mapFocus, layers, includeLegend, includeDate} = context;
-    c.fillStyle = '#7860bb'; c.font = '600 19px Arial'; c.fillText('PROPERTY MAP / PORTFOLIO REPORT', 70, 68);
+    c.fillStyle = '#7860bb'; c.font = '600 19px Arial'; c.fillText(reportTitle(context), 70, 68);
     c.fillStyle = '#2c2935'; c.font = '600 45px Arial'; c.fillText(project.name, 70, 130);
     c.fillStyle = '#82778b'; c.font = '19px Arial';
     c.fillText(`${rows.length} properties in directory  ·  Map focus: ${countryName}${mapFocus ? ' / ' + mapFocus : ''}`, 70, 174);
@@ -211,9 +225,7 @@ const ExportEngine = (() => {
       for (const [label, color] of keys) {c.fillStyle = color; c.fillRect(x, 940, 17, 17); c.fillStyle = '#766a7e'; c.fillText(label, x + 25, 954); x += c.measureText(label).width + 65}
     }
     c.strokeStyle = '#e4dfe8'; c.beginPath(); c.moveTo(70, 981); c.lineTo(Math.max(1850, width - 70), 981); c.stroke();
-    c.fillStyle = '#8f8597'; c.font = '15px Arial';
-    c.fillText('The map shows the selected view. The directory below includes every property in the chosen export scope.', 70, 1016);
-    if (includeDate) {c.textAlign = 'right'; c.fillText(new Date().toLocaleDateString(), Math.max(1850, width - 70), 1016); c.textAlign = 'left'}
+    if (includeDate) {c.fillStyle = '#8f8597'; c.font = '15px Arial'; c.textAlign = 'left'; c.fillText(new Date().toLocaleDateString(), 70, 1016)}
   }
 
   // PDF table pages: 28 lines each. With grouping on, every state starts with a section line, a state
@@ -260,10 +272,12 @@ const ExportEngine = (() => {
 
   async function pdfBlob(context, columns, resolution, svgMarkup) {
     const doc = await PDFLib.PDFDocument.create();
-    doc.setTitle(context.project.name + ' — complete property directory'); doc.setCreator('Property Map');
+    doc.setTitle(reportTitle(context) + ' — ' + context.project.name); doc.setCreator('Property Map');
     const img = await mapImage(svgMarkup);
     const map = makeCanvas(Math.max(1920, columns.width), 1080, resolution);
-    drawMapPage(map.c, context, img, map.canvas.width * SCALE_BASE / resolution);
+    const mapWidth = map.canvas.width * SCALE_BASE / resolution;
+    drawMapPage(map.c, context, img, mapWidth);
+    drawWatermarkLabel(map.c, context, 1080);
     const first = await doc.embedPng(await (await toBlob(map.canvas)).arrayBuffer());
     doc.addPage([map.canvas.width / (resolution / 960), 540]).drawImage(first, {x: 0, y: 0, width: map.canvas.width / (resolution / 960), height: 540});
     map.canvas.width = map.canvas.height = 0;
@@ -273,6 +287,7 @@ const ExportEngine = (() => {
       const logicalHeight = Math.max(365, CONTINUATION_ROW_Y + subset.length * ROW_HEIGHT + 90);
       const {canvas, c} = makeCanvas(columns.width, logicalHeight, resolution);
       directory(c, subset, context.rows.length, columns, {number: i + 1}, total, 85, CONTINUATION_ROW_Y, context.includeDate);
+      drawWatermarkLabel(c, context, logicalHeight);
       const pageImage = await doc.embedPng(await (await toBlob(canvas)).arrayBuffer());
       const size = [columns.width / 2, logicalHeight / 2];
       doc.addPage(size).drawImage(pageImage, {x: 0, y: 0, width: size[0], height: size[1]});
@@ -302,9 +317,10 @@ const ExportEngine = (() => {
   }
 
   function drawSlide(c, context, plan, img) {
-    if (plan.overview) {drawMapPage(c, context, img, SLIDE_W); return}
+    if (plan.overview) {drawMapPage(c, context, img, SLIDE_W); drawWatermarkLabel(c, context, plan.height); return}
     const theme = THEMES[context.theme] || THEMES.light, {project, rows} = context;
     c.fillStyle = theme.bg; c.fillRect(0, 0, SLIDE_W, plan.height);
+    c.fillStyle = project.palette.Live; c.font = '600 19px Arial'; c.fillText(reportTitle(context), SLIDE_MARGIN, 42);
     c.fillStyle = theme.ink; c.font = '600 44px Arial'; c.fillText(project.name, SLIDE_MARGIN, 84);
     c.fillStyle = theme.sub; c.font = '20px Arial';
     const facts = [`${rows.length} ${rows.length === 1 ? 'property' : 'properties'}`, context.countryName + (context.mapFocus ? ' / ' + context.mapFocus : '')];
@@ -341,6 +357,7 @@ const ExportEngine = (() => {
       }
       x += plan.columnWidth + COLUMN_GAP;
     }
+    drawWatermarkLabel(c, context, plan.height);
   }
 
   async function slideCanvas(context, svgMarkup, resolution) {

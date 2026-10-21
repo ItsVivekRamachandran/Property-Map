@@ -26,6 +26,25 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     // The 44-property sample fits one slide and can be copied straight to the clipboard.
     await page.locator('[data-action=export]').click();
     await page.waitForSelector('#exportPreview canvas');
+    assert.equal(await page.inputValue('#exportForm input[name=reportTitle]'), 'PROPERTY MAP / PORTFOLIO REPORT', 'the report heading is editable from its current default');
+    assert.equal(await page.isDisabled('#watermarkText'), true, 'watermark text stays disabled until the option is selected');
+    await page.fill('#exportForm input[name=reportTitle]', 'REGIONAL PORTFOLIO REVIEW');
+    await page.check('#exportForm input[name=watermark]');
+    assert.equal(await page.isEnabled('#watermarkText'), true, 'enabling the watermark also enables its text field');
+    await page.fill('#watermarkText', 'CONFIDENTIAL REVIEW');
+    await page.waitForTimeout(500);
+    const editableText = await page.evaluate(async () => {
+      const form = document.querySelector('#exportForm'), context = exportContext(form), labels = [];
+      const original = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (value, x, y, ...args) {labels.push({value:String(value), x, y, color:this.fillStyle}); return original.call(this, value, x, y, ...args)};
+      try {const canvas = await ExportEngine.slidePreview(context, exportMapMarkup(context.layers)); canvas.width = canvas.height = 0}
+      finally {CanvasRenderingContext2D.prototype.fillText = original}
+      const watermark = labels.find(item => item.value === '** CONFIDENTIAL REVIEW');
+      return {reportTitle: context.reportTitle, watermarkText: context.watermarkText,
+        headings: labels.filter(item => item.value === 'REGIONAL PORTFOLIO REVIEW').length,
+        watermark: watermark && {x:watermark.x, y:watermark.y, color:watermark.color}};
+    });
+    assert.deepEqual(editableText, {reportTitle: 'REGIONAL PORTFOLIO REVIEW', watermarkText: 'CONFIDENTIAL REVIEW', headings: 1, watermark:{x:70, y:1062, color:'#c62828'}}, 'the PNG renders the edited heading and a red ** watermark label at bottom-left');
     assert.equal(await page.locator('#exportForm input[name=pngSide]').count(), 2, 'PNG layout uses one radio group');
     assert.equal(await page.isChecked('#exportForm input[name=pngSide][value=overview]'), true, 'country overview is the default');
     await page.check('#exportForm input[name=pngSide][value=list]');
@@ -41,7 +60,8 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
       const svg = new DOMParser().parseFromString(exportMapMarkup(exportContext(document.querySelector('#exportForm')).layers), 'image/svg+xml');
       return {dots: svg.querySelectorAll('.count-dot').length, pills: svg.querySelectorAll('.map-label rect').length};
     });
-    assert.deepEqual(combined, {dots: 44, pills: 11}, 'dots and count numbers are drawn together');
+    assert.equal(combined.dots, 44, 'all property dots remain present');
+    assert(combined.pills > 0 && combined.pills <= 11, 'count labels are shown only where they fit the exported map');
     await page.uncheck('#exportForm input[name=countNumbers]');
     assert.equal(await page.evaluate(() => new DOMParser().parseFromString(exportMapMarkup(exportContext(document.querySelector('#exportForm')).layers), 'image/svg+xml').querySelectorAll('.property-count-number').length), 0, 'property count numbers can be removed independently');
     await page.check('#exportForm input[name=countNumbers]');
@@ -132,6 +152,9 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
 
     await page.locator('[data-action=export]').click();
     await page.selectOption('#exportForm select[name=kind]', 'pdf');
+    await page.fill('#exportForm input[name=reportTitle]', 'QUARTERLY PORTFOLIO REPORT');
+    await page.check('#exportForm input[name=watermark]');
+    await page.fill('#watermarkText', 'INTERNAL DRAFT');
     const layout = await page.evaluate(() => {
       const form = document.querySelector('#exportForm');
       const rows = exportRows(form), {cols} = exportColumns(rows, form);
@@ -152,7 +175,15 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     await page.uncheck('#exportForm input[name=groupByState]');
     assert((await page.locator('#exportEstimate').textContent()).includes('5 PDF pages'), 'ungrouped table is unchanged');
     await page.check('#exportForm input[name=groupByState]');
-    await page.evaluate(() => window.drawnCodes.clear());
+    const expectedWatermarks = await page.evaluate(() => 1 + ExportEngine.pdfPages(exportContext(document.querySelector('#exportForm'))).length);
+    await page.evaluate(() => {
+      window.drawnCodes.clear(); window.watermarkDraws = 0;
+      const original = CanvasRenderingContext2D.prototype.fillText;
+      CanvasRenderingContext2D.prototype.fillText = function (value, ...args) {
+        if (String(value) === '** INTERNAL DRAFT') window.watermarkDraws++;
+        return original.call(this, value, ...args);
+      };
+    });
     download = page.waitForEvent('download');
     await page.locator('[form=exportForm]').click();
     file = await download;
@@ -160,6 +191,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     await file.saveAs(root + '/tests/export-complete.pdf');
     await page.waitForSelector('#overlay:empty', {state: 'attached'});
     assert.equal(await page.evaluate(() => window.drawnCodes.size), 66, 'Every synthetic record is drawn in the PDF');
+    assert.equal(await page.evaluate(() => window.watermarkDraws), expectedWatermarks, 'the watermark is drawn exactly once on every PDF page');
     assert.deepEqual(errors, []);
     console.log('PASS: single 4K image with clipboard copy, combined map layers, one image for 110 records, measured unclipped values, and full PDF; no browser errors.');
   } finally {
