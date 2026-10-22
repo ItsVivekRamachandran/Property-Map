@@ -37,7 +37,7 @@ def init():
   elif not c.execute("SELECT 1 FROM users WHERE id!='local'").fetchone():
    p=os.environ.get('PROPERTY_MAP_ADMIN_PASSWORD','')
    if len(p)<12:raise SystemExit('Set PROPERTY_MAP_ADMIN_PASSWORD to at least 12 characters for shared mode.')
-   try:email=account_email(os.environ.get('PROPERTY_MAP_ADMIN_EMAIL','vivek.r@igt.com'))
+   try:email=account_email(os.environ.get('PROPERTY_MAP_ADMIN_EMAIL','admin@igt.com'))
    except ValueError as e:raise SystemExit(str(e))
    now=time.time();c.execute('INSERT INTO users(id,email,name,role,team,password,designation,department,active,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)',('admin',email,'Workspace admin','admin','West Region',password_hash(p),'Administrator','Administration',1,now,now))
   if not c.execute('SELECT 1 FROM projects').fetchone():

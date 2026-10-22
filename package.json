@@ -6,7 +6,11 @@
     "test:e2e": "node tests/e2e.cjs",
     "test:exports": "node tests/export_complete.cjs && node tests/offline_export.cjs",
     "test:shared": "node tests/shared_access.cjs",
-    "test:a11y": "node tests/accessibility_extreme.cjs"
+    "test:a11y": "node tests/accessibility_extreme.cjs",
+    "start": "python3 server.py",
+    "build": "python3 build_preview.py",
+    "test:continents": "node tests/continents.cjs",
+    "test:storage": "node tests/storage_regressions.cjs"
   },
   "devDependencies": {
     "axe-core": "^4.13.0",

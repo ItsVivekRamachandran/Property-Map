@@ -9,8 +9,15 @@ const path = require('path'), assert = require('assert');
   try {
     const page = await browser.newPage({acceptDownloads: true});
     const errors = []; page.on('pageerror', e => errors.push(e.message));
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('property-map-demo-v1')) {
+        localStorage.setItem('property-map-v1', JSON.stringify({projects: [{id: 'legacy-project'}], config: {}}));
+      }
+    });
     await page.goto('file://' + path.resolve(__dirname, '../Property-Map.html'));
     await page.waitForSelector('#mapSvg .region');
+    assert.deepEqual(await page.evaluate(() => S.projects.map(p => p.id)), ['demo-project']);
+    assert.equal(await page.evaluate(() => localStorage.getItem('property-map-v1')), null, 'legacy projects are removed');
     await page.selectOption('#countryFilter', 'WORLD');
     await page.waitForSelector('#worldCountryFilter');
     assert.equal(await page.locator('#mapSvg .region').count(), 250, 'standalone file embeds the World map');

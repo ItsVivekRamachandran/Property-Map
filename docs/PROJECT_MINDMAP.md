@@ -21,6 +21,8 @@ mindmap
         Projects and config in localStorage
         Export bytes in IndexedDB
         Single local admin identity
+        Demo storage namespace property-map-demo-v1
+        First open removes legacy project and export browser storage
       Python server local mode
         python server.py
         Loopback only
@@ -163,9 +165,7 @@ mindmap
     Seed and generated artifacts
       seed.py
         Default config and palettes
-        US sample with 44 properties
-        Empty India planning sample
-        CC HeatMap with 215 count-derived records across USA Canada and Uruguay
+        One Demo Property Portfolio with 44 fictional properties across 11 US states
       Property-Map.html
         Generated self-contained preview
         Never edit directly
@@ -204,7 +204,6 @@ mindmap
       D3 for projections zoom colors and SVG
       TopoJSON for US boundary conversion
       PDF-Lib for PDFs
-      JSZip for multi-page PNG ZIPs
       Material Symbols outlined icon paths
       Playwright from runtime environment for browser tests
 ```
@@ -261,7 +260,6 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Saved export deletion removes both its project metadata and stored blob; only project admins/owners may delete server-side exports.
 - Local server mode must remain loopback-only. Shared mode requires a 12+ character initial admin password.
 - Shared-mode account addresses are normalized to lowercase and must use the fixed `@igt.com` domain. Full name, designation and department are required, and email uniqueness is case-insensitive.
-- The seeded CC HeatMap project expands the supplied aggregate table into 215 placeholder property records: 207 USA, 6 Canada and 2 Uruguay. Québec uses the bundled accented region label; the country-only Uruguay source row uses Montevideo as the required admin-1 placeholder.
 - `/admin` shows the administrator email/password form and uses the password-only administrator endpoint. `/` shows email-only member access; an unknown valid address is provisioned with a private workspace. Email-only access is intentionally limited to trusted local use because it does not prove mailbox ownership.
 - Creating an account also creates one private personal workspace owned by that user. Deleting an account deletes its owned projects and exports, removes its memberships and sessions, and must never remove the current or final active administrator.
 - The property form exposes one City field. It writes the legacy `district` key for backup compatibility, falls back to the old `city` key when reading historical rows, and clears the duplicate key on the next save.

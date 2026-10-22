@@ -35,7 +35,7 @@ fi
 
 export PROPERTY_MAP_MODE="shared"
 export PROPERTY_MAP_DATA="$SCRIPT_DIR/shared-data"
-export PROPERTY_MAP_ADMIN_EMAIL="vivek.r@igt.com"
+export PROPERTY_MAP_ADMIN_EMAIL="admin@igt.com"
 export PROPERTY_MAP_SECURE_COOKIE="0"
 unset PROPERTY_MAP_ADMIN_PASSWORD
 

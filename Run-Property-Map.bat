@@ -50,7 +50,7 @@ if errorlevel 1 (
 
 set "PROPERTY_MAP_MODE=shared"
 set "PROPERTY_MAP_DATA=%~dp0shared-data"
-set "PROPERTY_MAP_ADMIN_EMAIL=vivek.r@igt.com"
+set "PROPERTY_MAP_ADMIN_EMAIL=admin@igt.com"
 set "PROPERTY_MAP_SECURE_COOKIE=0"
 set "PROPERTY_MAP_ADMIN_PASSWORD="
 

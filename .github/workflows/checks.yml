@@ -1,0 +1,35 @@
+name: Application checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:e2e
+      - run: npm run test:exports
+      - run: npm run test:continents
+      - run: npm run test:shared
+      - run: npm run test:storage
+      - run: npm run test:a11y
+      - run: node tests/continent_loading.cjs
+      - run: node tests/export_labels.cjs

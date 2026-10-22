@@ -10,3 +10,7 @@ public/data/world-raw.json
 .DS_Store
 node_modules/
 .env
+
+.env.*
+!.env.example
+_site/

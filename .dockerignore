@@ -1,6 +1,14 @@
+.git/
+.github/
+node_modules/
 data/
+shared-data/
 tests/
-public/data/world-raw.json
-*.zip
 __pycache__/
+**/__pycache__/
+*.pyc
+.DS_Store
+.env
+.env.*
 Property-Map.html
+public/data/world-raw.json

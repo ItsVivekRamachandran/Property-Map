@@ -1,15 +1,63 @@
-from pathlib import Path
+"""Build the standalone demo from maintained source files and bundled geography."""
+
 import json
-from seed import seed_projects,DEFAULT_CONFIG
-ROOT=Path(__file__).parent;P=ROOT/'public'
-def js(s):return s.replace('</script','<\\/script')
-# Browser-safe public alias; keep the ISO file as the canonical validation source.
-(P/'data/guatemala-regions.json').write_text((P/'data/GTM.json').read_text())
-embedded={str(f.relative_to(P)):json.loads(f.read_text()) for f in (P/'data').glob('*.json') if f.name!='world-raw.json'}
-seed={'projects':seed_projects(),'config':DEFAULT_CONFIG}
-for p in seed['projects']:p['access']='admin'
-html=(P/'index.html').read_text().replace('<link rel="stylesheet" href="styles.css">','<style>'+(P/'styles.css').read_text()+'</style>')
-html=html.replace('<script src="vendor/d3.min.js"></script>', '<script>window.STANDALONE=true;window.SEED='+js(json.dumps(seed))+';window.EMBEDDED='+js(json.dumps(embedded,separators=(',',':')))+';</script><script>'+js((P/'vendor/d3.min.js').read_text())+'</script>')
-for f in ['vendor/topojson.min.js','vendor/pdf-lib.min.js','vendor/jszip.min.js','vendor/material-symbols.js','export-engine.js','app.js']:html=html.replace('<script src="'+f+'"></script>','<script>'+js((P/f).read_text())+'</script>')
-(ROOT/'Property-Map.html').write_text(html)
-print('Built self-contained Property-Map.html:',round(len(html.encode())/1024**2,2),'MiB')
+from pathlib import Path
+
+from seed import DEFAULT_CONFIG, seed_projects
+
+ROOT = Path(__file__).parent
+PUBLIC = ROOT / 'public'
+SCRIPTS = (
+    'vendor/topojson.min.js',
+    'vendor/pdf-lib.min.js',
+    'vendor/material-symbols.js',
+    'export-engine.js',
+    'app.js',
+)
+
+
+def script_text(value):
+    return value.replace('</script', '<\\/script')
+
+
+def build():
+    # Browser-safe alias: some content blockers intercept the ISO filename GTM.
+    (PUBLIC / 'data/guatemala-regions.json').write_text(
+        (PUBLIC / 'data/GTM.json').read_text(encoding='utf-8'), encoding='utf-8'
+    )
+    geography = {
+        str(path.relative_to(PUBLIC)): json.loads(path.read_text(encoding='utf-8'))
+        for path in sorted((PUBLIC / 'data').glob('*.json'))
+        if path.name != 'world-raw.json'
+    }
+    seed = {'projects': seed_projects(), 'config': DEFAULT_CONFIG}
+    for project in seed['projects']:
+        project['access'] = 'admin'
+    html = (PUBLIC / 'index.html').read_text(encoding='utf-8')
+    html = html.replace(
+        '<link rel="stylesheet" href="styles.css">',
+        '<style>' + (PUBLIC / 'styles.css').read_text(encoding='utf-8') + '</style>',
+    )
+    bootstrap = (
+        'window.STANDALONE=true;window.SEED=' + script_text(json.dumps(seed))
+        + ';window.EMBEDDED='
+        + script_text(json.dumps(geography, separators=(',', ':'))) + ';'
+    )
+    html = html.replace(
+        '<script src="vendor/d3.min.js"></script>',
+        '<script>' + bootstrap + '</script><script>'
+        + script_text((PUBLIC / 'vendor/d3.min.js').read_text(encoding='utf-8'))
+        + '</script>',
+    )
+    for name in SCRIPTS:
+        html = html.replace(
+            '<script src="' + name + '"></script>',
+            '<script>' + script_text((PUBLIC / name).read_text(encoding='utf-8'))
+            + '</script>',
+        )
+    (ROOT / 'Property-Map.html').write_text(html, encoding='utf-8')
+    print(f'Built self-contained Property-Map.html: {len(html.encode()) / 1024**2:.2f} MiB')
+
+
+if __name__ == '__main__':
+    build()

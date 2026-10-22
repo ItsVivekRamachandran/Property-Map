@@ -86,7 +86,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
 
     // A long portfolio: every record must still be drawn, continuing over extra slides.
     const bootstrap = await (await page.request.get('http://127.0.0.1:8002/api/bootstrap')).json();
-    const project = bootstrap.projects.find(p => p.id === 'us-coverage');
+    const project = bootstrap.projects.find(p => p.id === 'demo-project');
     const longName = 'Regional Product Management and Operations Portfolio Location with Extended Property Identification QA-065';
     project.fields.push({id: 'pm_ref', label: 'Product management reference', type: 'text', visibility: 'everyone', editable: 'everyone', options: [], required: false});
     for (let i = 0; i < 66; i++) {
@@ -101,7 +101,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     }
     // A property in another country belongs to the project but not to this map, so it must stay out of the export.
     project.properties.push({id: 'other-country', code: 'IN-001', name: 'Outside this map', country: 'IND', state: 'Tamil Nadu', district: '', city: '', address: '', status: 'Live', competitor: false, team: project.team, notes: '', lat: '', lng: '', custom: {pm_ref: ''}});
-    const put = await page.request.put('http://127.0.0.1:8002/api/projects/us-coverage', {headers: {'X-Property-Map': '1'}, data: project});
+    const put = await page.request.put('http://127.0.0.1:8002/api/projects/demo-project', {headers: {'X-Property-Map': '1'}, data: project});
     assert.equal(put.status(), 200, await put.text());
     await page.reload();
     await page.waitForSelector('#mapSvg .region');
