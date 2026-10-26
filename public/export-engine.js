@@ -10,7 +10,7 @@ const ExportEngine = (() => {
     light: {bg: '#faf9f6', card: '#ffffff', ink: '#242b34', sub: '#655e6b', line: '#e8e7e4'},
     dark: {bg: '#33303b', card: '#3f3b49', ink: '#ffffff', sub: '#d6d1dc', line: '#5a5566'}
   };
-  const DEFAULT_REPORT_TITLE = 'PROPERTY MAP / PORTFOLIO REPORT';
+  const DEFAULT_REPORT_TITLE = 'Product HeatMap / PORTFOLIO REPORT';
   const reportTitle = context => String(context.reportTitle || '').trim() || DEFAULT_REPORT_TITLE;
 
   // Draw exactly one compact footer label. Keeping this in the canvas pipeline makes the PNG
@@ -267,12 +267,12 @@ const ExportEngine = (() => {
     });
     const footerY = rowY + items.length * ROW_HEIGHT + 38;
     c.fillStyle = '#8d8194'; c.font = '15px Arial';
-    c.fillText('Property Map  ·  Full values shown on one line  ·  ' + (includeDate ? new Date().toLocaleDateString() : 'Portfolio report'), 70, footerY);
+    c.fillText('Product HeatMap  ·  Full values shown on one line  ·  ' + (includeDate ? new Date().toLocaleDateString() : 'Portfolio report'), 70, footerY);
   }
 
   async function pdfBlob(context, columns, resolution, svgMarkup) {
     const doc = await PDFLib.PDFDocument.create();
-    doc.setTitle(reportTitle(context) + ' — ' + context.project.name); doc.setCreator('Property Map');
+    doc.setTitle(reportTitle(context) + ' — ' + context.project.name); doc.setCreator('Product HeatMap');
     const img = await mapImage(svgMarkup);
     const map = makeCanvas(Math.max(1920, columns.width), 1080, resolution);
     const mapWidth = map.canvas.width * SCALE_BASE / resolution;

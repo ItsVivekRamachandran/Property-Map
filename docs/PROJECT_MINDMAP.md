@@ -1,10 +1,10 @@
-# Property Map — first-reference mind map
+# Product HeatMap — first-reference mind map
 
 Read this before opening implementation files. It is an index to the code, not a replacement for checking the named source before changing behavior.
 
 ```mermaid
 mindmap
-  root((Property Map))
+  root((Product HeatMap))
     Product
       Portfolio workspace
       Projects contain properties

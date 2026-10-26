@@ -26,7 +26,7 @@ const fs = require('fs'), path = require('path'), os = require('os'), assert = r
     // The 44-property sample fits one slide and can be copied straight to the clipboard.
     await page.locator('[data-action=export]').click();
     await page.waitForSelector('#exportPreview canvas');
-    assert.equal(await page.inputValue('#exportForm input[name=reportTitle]'), 'PROPERTY MAP / PORTFOLIO REPORT', 'the report heading is editable from its current default');
+    assert.equal(await page.inputValue('#exportForm input[name=reportTitle]'), 'Product HeatMap / PORTFOLIO REPORT', 'the report heading is editable from its current default');
     assert.equal(await page.isDisabled('#watermarkText'), true, 'watermark text stays disabled until the option is selected');
     await page.fill('#exportForm input[name=reportTitle]', 'REGIONAL PORTFOLIO REVIEW');
     await page.check('#exportForm input[name=watermark]');

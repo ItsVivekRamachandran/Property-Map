@@ -1,12 +1,12 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-title Property Map - Local Shared Server
+title Product HeatMap - Local Shared Server
 
 cd /d "%~dp0"
 
 echo.
 echo ============================================================
-echo   Property Map - Local Shared Server
+echo   Product HeatMap - Local Shared Server
 echo ============================================================
 echo.
 
@@ -32,7 +32,7 @@ if not errorlevel 1 (
 
 %PYTHON_EXE% %PYTHON_ARGS% -c "import sys; raise SystemExit(0 if sys.version_info ^>= (3, 10) else 1)" >nul 2>nul
 if errorlevel 1 (
-    echo ERROR: Property Map requires Python 3.10 or newer.
+    echo ERROR: Product HeatMap requires Python 3.10 or newer.
     %PYTHON_EXE% %PYTHON_ARGS% --version
     echo.
     pause
@@ -88,11 +88,11 @@ if "%NEEDS_SETUP%"=="1" (
     )
 )
 
-echo Starting Property Map...
+echo Starting Product HeatMap...
 echo Member URL: http://127.0.0.1:8000/
 echo Admin URL:  http://127.0.0.1:8000/admin
 echo.
-echo Keep this window open while using Property Map.
+echo Keep this window open while using Product HeatMap.
 echo Press Ctrl+C in this window to stop the server.
 echo.
 
@@ -103,9 +103,9 @@ set "SERVER_EXIT=%ERRORLEVEL%"
 
 echo.
 if not "%SERVER_EXIT%"=="0" (
-    echo Property Map stopped with error code %SERVER_EXIT%.
+    echo Product HeatMap stopped with error code %SERVER_EXIT%.
 ) else (
-    echo Property Map stopped.
+    echo Product HeatMap stopped.
 )
 pause
 exit /b %SERVER_EXIT%

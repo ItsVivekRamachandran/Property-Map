@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-# Property Map - one-click macOS launcher.
+# Product HeatMap - one-click macOS launcher.
 # Double-click this file in Finder to start the local shared server.
 
 SCRIPT_DIR="${0:A:h}"
@@ -9,7 +9,7 @@ cd "$SCRIPT_DIR" || exit 1
 clear
 echo
 echo "============================================================"
-echo "  Property Map - Local Shared Server"
+echo "  Product HeatMap - Local Shared Server"
 echo "============================================================"
 echo
 
@@ -26,7 +26,7 @@ else
 fi
 
 if ! "$PYTHON_EXE" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
-  echo "ERROR: Property Map requires Python 3.10 or newer."
+  echo "ERROR: Product HeatMap requires Python 3.10 or newer."
   "$PYTHON_EXE" --version
   echo
   read "REPLY?Press Return to close..."
@@ -68,11 +68,11 @@ if [[ "$NEEDS_SETUP" == "1" ]]; then
   export PROPERTY_MAP_ADMIN_PASSWORD
 fi
 
-echo "Starting Property Map..."
+echo "Starting Product HeatMap..."
 echo "Member URL: http://127.0.0.1:8000/"
 echo "Admin URL:  http://127.0.0.1:8000/admin"
 echo
-echo "Keep this window open while using Property Map."
+echo "Keep this window open while using Product HeatMap."
 echo "Press Control+C in this window to stop the server."
 echo
 
@@ -96,9 +96,9 @@ unset PROPERTY_MAP_ADMIN_PASSWORD
 
 echo
 if [[ "$SERVER_EXIT" -eq 0 || "$SERVER_EXIT" -eq 130 ]]; then
-  echo "Property Map stopped."
+  echo "Product HeatMap stopped."
 else
-  echo "Property Map stopped with error code $SERVER_EXIT."
+  echo "Product HeatMap stopped with error code $SERVER_EXIT."
 fi
 echo
 read "REPLY?Press Return to close..."

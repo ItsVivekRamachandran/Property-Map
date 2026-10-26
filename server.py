@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Property Map. Standard-library server with SQLite, sessions and project ACLs."""
+"""Product HeatMap. Standard-library server with SQLite, sessions and project ACLs."""
 import os,json,sqlite3,secrets,hashlib,hmac,time,re,base64,urllib.parse,mimetypes,argparse,math,datetime
 from pathlib import Path
 from http.server import ThreadingHTTPServer,BaseHTTPRequestHandler
@@ -391,4 +391,4 @@ class Handler(BaseHTTPRequestHandler):
 if __name__=='__main__':
  parser=argparse.ArgumentParser();parser.add_argument('--port',type=int,default=8000);parser.add_argument('--host',default='127.0.0.1');args=parser.parse_args()
  if LOCAL and args.host not in ['127.0.0.1','localhost','::1']:raise SystemExit('Local preview must bind to loopback. Use PROPERTY_MAP_MODE=shared for team access.')
- init();print(f'Property Map: http://{args.host}:{args.port} ({"local preview" if LOCAL else "authenticated shared mode"})',flush=True);ThreadingHTTPServer((args.host,args.port),Handler).serve_forever()
+ init();print(f'Product HeatMap: http://{args.host}:{args.port} ({"local preview" if LOCAL else "authenticated shared mode"})',flush=True);ThreadingHTTPServer((args.host,args.port),Handler).serve_forever()

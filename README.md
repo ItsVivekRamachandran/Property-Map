@@ -1,4 +1,4 @@
-# Property Map
+# Product HeatMap
 
 A property portfolio workspace with country and continent maps, project management, CSV imports, custom fields, and PNG/PDF exports. Python's standard library and SQLite power the local server; browser libraries and geography are bundled for offline use.
 

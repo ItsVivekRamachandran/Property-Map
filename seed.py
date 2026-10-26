@@ -59,7 +59,7 @@ def seed_projects(owner='local'):
 
 
 DEFAULT_CONFIG = {
-    'accountName': 'Property Map', 'displayName': '', 'palette': PALETTE,
+    'accountName': 'Product HeatMap', 'displayName': '', 'palette': PALETTE,
     'fields': [], 'teamFields': {},
     'teams': ['West Region', 'Business Development', 'Research'],
 }

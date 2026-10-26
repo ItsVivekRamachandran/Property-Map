@@ -1,5 +1,5 @@
 {
-  "name": "property-map",
+  "name": "product-heatmap",
   "private": true,
   "scripts": {
     "test": "python3 tests/test_server.py",
