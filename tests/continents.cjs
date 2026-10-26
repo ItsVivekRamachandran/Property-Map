@@ -85,7 +85,8 @@ const assert = require('assert'), path = require('path'), fs = require('fs');
     await page.keyboard.press('Enter');
     await page.waitForSelector('#stateFilter');
     assert.equal(await page.locator('#mapSvg .region').count(), 51, 'country drill-down retains state detail');
-    assert.equal(await page.locator('#stateFilter').inputValue(),'Nevada','selecting a continent state opens that state filter');
+    assert.equal(await page.locator('#countryFilter').inputValue(),'USA','continent keyboard navigation selects the country dropdown');
+    assert.equal(await page.locator('#stateFilter').inputValue(),'','continent navigation opens the full country');
     await page.selectOption('#countryFilter', 'CONTINENT_NORTH_AMERICA');
     await page.locator('[data-action=property]').first().click();
     assert.equal(await page.locator('#propertyForm select[name=country] option[value^=CONTINENT_]').count(), 0, 'continents cannot be stored as property countries');
@@ -95,6 +96,6 @@ const assert = require('assert'), path = require('path'), fs = require('fs');
     assert.equal(await page.locator('.stats .num').first().textContent(), '44', 'returning to World restores all countries');
     assert.equal(await page.locator('#mapSvg .world-country[data-state=USA]').count(),1,'World keeps whole-country rendering');
     assert.deepEqual(errors, []);
-    console.log('PASS: continent state counts and shading, persistent no-properties color, scoped exports, labels, state drill-down, and whole-country World view.');
+    console.log('PASS: continent state counts and shading, persistent no-properties color, scoped exports, labels, country drill-down, and whole-country World view.');
   } finally { await browser.close(); }
 })().catch(error => {console.error(error); process.exitCode = 1});

@@ -179,6 +179,8 @@ mindmap
         Main browser CRUD settings map export mobile flow
       tests continents.cjs
         Offline continent selection state counts custom empty-region colors exports labels and drill-down
+      tests country_navigation.cjs
+        Pointer and keyboard country navigation from World and all continents with dropdown and filter synchronization
       tests continent_loading.cjs
         Six continent maps over HTTP bounded downloads transient retries failed-cache recovery and navigation races
       tests storage_regressions.cjs
@@ -236,7 +238,7 @@ Exports are rendered entirely in the browser. `public/app.js` gathers the select
 - Pushing to `main` republishes the standalone preview on GitHub Pages.
 - UI values come from the tokens in `public/styles.css`: 4px spacing grid, 12px minimum text, WCAG AA contrast, Material Symbols icons.
 - A property code is unique only within its project. Latitude and longitude must be supplied together.
-- World and the six continent views are read-only map scopes, never project or property countries. World aggregates by country and hides internal state/province strokes. Continents load member countries' admin-1 geometry, aggregate by `country:state` keys, and show state/province boundaries, shading and count badges. Selecting a continent region opens its country map with that state/province selected. Continent memberships and camera frames live in `public/data/continents.json`; transcontinental countries belong to one group, and distant overseas geometry may lie outside the camera frame. Antarctica is not in the bundled geography; ATF, HMD and SGS remain available in World only.
+- World and the six continent views are read-only map scopes, never project or property countries. World aggregates by country and hides internal state/province strokes. Continents load member countries' admin-1 geometry, aggregate by `country:state` keys, and show state/province boundaries, shading and count badges. Selecting a country in World or any region in a continent opens the full country map and selects that country in the Map view dropdown, clearing state, city, search and pagination. Map labels and count badges pass pointer clicks through to the region beneath them. Continent memberships and camera frames live in `public/data/continents.json`; transcontinental countries belong to one group, and distant overseas geometry may lie outside the camera frame. Antarctica is not in the bundled geography; ATF, HMD and SGS remain available in World only.
 - Map-data downloads use at most four concurrent requests and retry transient failures up to three attempts. Failed country promises are removed from the continent cache so reselecting a map can recover. Errors identify the failing data file; late map responses must not overwrite newer navigation.
 - Guatemala retains country code GTM in stored records and validators, while browser map requests use `data/guatemala-regions.json`. `build_preview.py` regenerates this alias from canonical `GTM.json`; content blockers can mistake the ISO filename for Google Tag Manager.
 - CSV property imports append to the current project, use the same ordered columns as Download CSV, and validate every row before the full project is committed; an invalid row or duplicate code rejects the entire upload.
@@ -308,6 +310,7 @@ python3 build_preview.py
 # Chromium: CHROMIUM_PATH if set, otherwise Playwright's own download (npx playwright install chromium).
 node tests/e2e.cjs
 node tests/continents.cjs
+node tests/country_navigation.cjs
 node tests/continent_loading.cjs
 node tests/storage_regressions.cjs
 node tests/shared_access.cjs
